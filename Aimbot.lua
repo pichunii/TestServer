@@ -1,6 +1,14 @@
--- [[ NOVAX HUB V3 - MACLIB EDITION ]]
+-- [[ NOVAX HUB V4 - RAYFIELD EDITION ]]
 -- Tác giả: Nhism
--- Hệ thống: Aimbot, ESP, Exploits, Bypass Anti-Cheat (MacLib UI).
+-- Tích hợp: Rayfield UI (Không lỗi Executor), Bypass, Aimbot, ESP.
+
+-- [ 1. KHỞI TẠO MÔI TRƯỜNG AN TOÀN ]
+if not getgenv then getgenv = function() return _G end end
+if not game:IsLoaded() then game.Loaded:Wait() end
+local successInit, errInit = pcall(function()
+    if not game:GetService("CoreGui") then error("CoreGui không khả dụng") end
+end)
+if not successInit then return end
 
 local Services = {
     Players = game:GetService("Players"),
@@ -13,9 +21,9 @@ local Services = {
 local LocalPlayer = Services.Players.LocalPlayer
 local Camera = Services.Workspace.CurrentCamera
 local Mouse = LocalPlayer:GetMouse()
-local ConfigFile = "NovaX_MacLib_Config.json"
+local ConfigFile = "NovaX_Rayfield_Config.json"
 
--- [ 1. NÂNG CẤP ANTI-CHEAT & BYPASS ]
+-- [ 2. NÂNG CẤP BYPASS & ANTI-CHEAT ]
 local function EnhancedBypass()
     pcall(function()
         local mt = getrawmetatable(game)
@@ -28,6 +36,7 @@ local function EnhancedBypass()
         end)
         setreadonly(mt, true)
     end)
+    
     if getgenv then
         getgenv().AntiCheatDisabled = true
         getgenv().BypassActive = true
@@ -35,7 +44,7 @@ local function EnhancedBypass()
 end
 EnhancedBypass()
 
--- [ 2. CẤU HÌNH MẶC ĐỊNH ]
+-- [ 3. CẤU HÌNH HỆ THỐNG ]
 local Config = {
     Aimbot = {
         Enabled = false,
@@ -84,12 +93,12 @@ local function SaveConfig()
 end
 LoadConfig()
 
--- [ 3. HÀM RAINBOW COLOR ]
+-- [ 4. HÀM RAINBOW COLOR ]
 local function GetRainbowColor()
     return Color3.fromHSV((tick() * 0.5) % 1, 1, 1)
 end
 
--- [ 4. HỆ THỐNG ESP (DRAWING API) ]
+-- [ 5. HỆ THỐNG ESP (DRAWING API) ]
 local ESPObjects = {}
 
 local function CreateESP(player)
@@ -184,7 +193,7 @@ local function UpdateESP()
     end
 end
 
--- [ 5. HỆ THỐNG HITBOX EXPANDER ]
+-- [ 6. HỆ THỐNG HITBOX EXPANDER ]
 local originalSizes = {}
 local function ToggleHitbox(state)
     for _, player in pairs(Services.Players:GetPlayers()) do
@@ -206,7 +215,7 @@ local function ToggleHitbox(state)
     end
 end
 
--- [ 6. LOGIC AIMBOT & SILENT AIM ]
+-- [ 7. LOGIC AIMBOT & SILENT AIM ]
 local FOVCircle = Drawing.new("Circle")
 FOVCircle.Thickness = 1
 FOVCircle.Filled = false
@@ -247,22 +256,24 @@ local function GetClosestPlayer()
     return closest
 end
 
--- Hook Silent Aim
+-- Hook Silent Aim (Bọc pcall để chống crash)
 local oldIndex
-oldIndex = hookmetamethod(game, "__index", function(self, key)
-    if not checkcaller() and getgenv().SilentAimActive and (self == Mouse or self == Camera) then
-        if key == "Hit" or key == "Target" then
-            local target = GetClosestPlayer()
-            if target and target.Character then
-                local part = target.Character:FindFirstChild(Config.Aimbot.TargetPart) or target.Character:FindFirstChild("HumanoidRootPart")
-                if part then return part.CFrame end
+pcall(function()
+    oldIndex = hookmetamethod(game, "__index", function(self, key)
+        if not checkcaller() and getgenv().SilentAimActive and (self == Mouse or self == Camera) then
+            if key == "Hit" or key == "Target" then
+                local target = GetClosestPlayer()
+                if target and target.Character then
+                    local part = target.Character:FindFirstChild(Config.Aimbot.TargetPart) or target.Character:FindFirstChild("HumanoidRootPart")
+                    if part then return part.CFrame end
+                end
             end
         end
-    end
-    return oldIndex(self, key)
+        return oldIndex(self, key)
+    end)
 end)
 
--- [ 7. RENDER LOOP ]
+-- [ 8. RENDER LOOP ]
 Services.RunService.RenderStepped:Connect(function()
     -- FOV Update
     FOVCircle.Position = Camera.ViewportSize / 2
@@ -270,6 +281,7 @@ Services.RunService.RenderStepped:Connect(function()
     FOVCircle.Color = Config.ESP.Rainbow and GetRainbowColor() or Color3.fromRGB(255, 255, 255)
     FOVCircle.Visible = Config.Aimbot.Enabled
     
+    -- ESP Update
     UpdateESP()
     
     -- Aimbot Logic
@@ -302,111 +314,229 @@ Services.RunService.RenderStepped:Connect(function()
     end
 end)
 
--- [ 8. KHỞI TẠO UI MACLIB ]
-local MacLib = loadstring(game:HttpGet("https://raw.githubusercontent.com/yourname/yourrepo/main/maclib.lua"))()
+-- [ 9. KHỞI TẠO RAYFIELD UI ]
+local Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
 
-local Window = MacLib:Window({
-    Title = "NovaX Hub",
-    Subtitle = "MacLib Edition | By Nhism",
-    Size = UDim2.fromOffset(868, 650),
-    DragStyle = 1,
-    AcrylicBlur = true,
+local Window = Rayfield:CreateWindow({
+    Name = "NovaX Hub | Rayfield",
+    LoadingTitle = "NovaX Hub",
+    LoadingSubtitle = "by Nhism",
+    ConfigurationSaving = {
+        Enabled = true,
+        FolderName = "NovaXConfig", 
+        FileName = "NovaX_Rayfield"
+    },
+    KeySystem = true,
+    KeySettings = {
+        Title = "NovaX Key System",
+        Subtitle = "Nhập Key Để Tiếp Tục",
+        Note = "Lấy Key Tại Discord: discord.gg/nhism",
+        FileName = "NovaXKey",
+        SaveKey = true,
+        GrabKeyFromSite = false, -- Thay bằng link web nếu có
+        Key = {"NHISM-PREMIUM-999", "NHISM-FREE-111"}
+    }
 })
 
-local TabGroup = Window:TabGroup()
-local InfoTab = TabGroup:Tab({Name = "Information", Image = "rbxassetid://18821914323"})
-local HomeTab = TabGroup:Tab({Name = "Aimbot & Visuals", Image = "rbxassetid://10734950309"})
-local SettingTab = TabGroup:Tab({Name = "Settings & Exploits", Image = "rbxassetid://10734950309"})
+-- TAB: INFO
+local InfoTab = Window:CreateTab("Info Hub", 4483362458)
+InfoTab:CreateSection("NovaX Hub V4")
+InfoTab:CreateLabel("Tác giả: Nhism")
+InfoTab:CreateLabel("Trạng thái: Bypassed / Undetected")
+InfoTab:CreateLabel("Phiên bản: 4.0.0 (Rayfield Edition)")
 
--- INFO TAB
-local InfoSection = InfoTab:Section({Side = "Left"})
-InfoSection:Label({Text = "NovaX Hub V3 | MacLib UI"})
-InfoSection:Label({Text = "Developer: Nhism"})
-InfoSection:Label({Text = "Status: Bypassed / Undetected"})
-InfoSection:Label({Text = "Version: 3.0.0"})
-InfoSection:Button({
-    Name = "Copy Discord Link",
+InfoTab:CreateSection("Liên kết")
+local DiscordBtn = InfoTab:CreateButton({
+    Name = "Copy Link Discord",
     Callback = function()
         if setclipboard then setclipboard("https://discord.gg/nhism") end
-        Window:Notify({Title = "Copied", Description = "Discord link copied to clipboard."})
-    end
+        Rayfield:Notify({Title = "Đã Copy", Content = "Link Discord đã được lưu vào Clipboard", Duration = 3})
+    end,
 })
-InfoSection:Button({
-    Name = "Copy Website Link",
+local WebBtn = InfoTab:CreateButton({
+    Name = "Copy Link Website",
     Callback = function()
         if setclipboard then setclipboard("https://nhism.com") end
-        Window:Notify({Title = "Copied", Description = "Website link copied to clipboard."})
-    end
+        Rayfield:Notify({Title = "Đã Copy", Content = "Link Website đã được lưu vào Clipboard", Duration = 3})
+    end,
 })
 
--- HOME TAB (AIMBOT & ESP)
-local AimSection = HomeTab:Section({Side = "Left"})
-local ESP_Section = HomeTab:Section({Side = "Right"})
+-- TAB: AIMBOT & VISUALS
+local MainTab = Window:CreateTab("Aimbot & Visuals", 4483362458)
+MainTab:CreateSection("Cấu Hình Aimbot")
 
-AimSection:Header({Name = "Aimbot Settings"})
-AimSection:Toggle({Name = "Enable Aimbot", Default = Config.Aimbot.Enabled, Callback = function(v) Config.Aimbot.Enabled = v end})
-AimSection:Toggle({Name = "Silent Aim", Default = Config.Aimbot.SilentAim, Callback = function(v) Config.Aimbot.SilentAim = v end})
-AimSection:Toggle({Name = "Camera Lock", Default = Config.Aimbot.CameraLock, Callback = function(v) Config.Aimbot.CameraLock = v end})
-AimSection:Toggle({Name = "Team Check", Default = Config.Aimbot.TeamCheck, Callback = function(v) Config.Aimbot.TeamCheck = v end})
-AimSection:Toggle({Name = "Wall Check", Default = Config.Aimbot.WallCheck, Callback = function(v) Config.Aimbot.WallCheck = v end})
-AimSection:Toggle({Name = "Dead Check", Default = Config.Aimbot.DeadCheck, Callback = function(v) Config.Aimbot.DeadCheck = v end})
-
-AimSection:Dropdown({
-    Name = "Target Part",
-    Options = { "Head", "Neck", "UpperTorso", "LowerTorso", "LeftLeg", "RightLeg" },
-    Default = 1,
-    Callback = function(v) Config.Aimbot.TargetPart = v end
+local AimbotToggle = MainTab:CreateToggle({
+    Name = "Bật Aimbot",
+    CurrentValue = Config.Aimbot.Enabled,
+    Flag = "AimbotToggle",
+    Callback = function(Value) Config.Aimbot.Enabled = Value end,
 })
-AimSection:Slider({Name = "Smoothness", Default = Config.Aimbot.Smoothness * 100, Minimum = 10, Maximum = 100, Callback = function(v) Config.Aimbot.Smoothness = v / 100 end})
-AimSection:Slider({Name = "FOV Radius", Default = Config.Aimbot.FOV, Minimum = 50, Maximum = 800, Callback = function(v) Config.Aimbot.FOV = v end})
-AimSection:Keybind({Name = "Aimbot Key", Default = Enum.KeyCode.E, Callback = function(k) Config.Aimbot.Keybind = k.Name end})
-
-ESP_Section:Header({Name = "Visual Settings (ESP)"})
-ESP_Section:Toggle({Name = "Enable ESP", Default = Config.ESP.Enabled, Callback = function(v) Config.ESP.Enabled = v end})
-ESP_Section:Toggle({Name = "Rainbow Mode", Default = Config.ESP.Rainbow, Callback = function(v) Config.ESP.Rainbow = v end})
-ESP_Section:Toggle({Name = "Box ESP", Default = Config.ESP.Box, Callback = function(v) Config.ESP.Box = v end})
-ESP_Section:Toggle({Name = "Ring ESP", Default = Config.ESP.Ring, Callback = function(v) Config.ESP.Ring = v end})
-ESP_Section:Toggle({Name = "Health Bar", Default = Config.ESP.Health, Callback = function(v) Config.ESP.Health = v end})
-
--- SETTING TAB (EXPLOITS)
-local ExploitSection = SettingTab:Section({Side = "Left"})
-local ConfigSection = SettingTab:Section({Side = "Right"})
-
-ExploitSection:Header({Name = "Exploits & Bypass"})
-ExploitSection:Toggle({Name = "Speed Hack", Default = Config.Exploits.Speed, Callback = function(v) Config.Exploits.Speed = v end})
-ExploitSection:Slider({Name = "Speed Value", Default = Config.Exploits.SpeedValue, Minimum = 16, Maximum = 250, Callback = function(v) Config.Exploits.SpeedValue = v end})
-ExploitSection:Toggle({Name = "Jump Hack", Default = Config.Exploits.Jump, Callback = function(v) Config.Exploits.Jump = v end})
-ExploitSection:Slider({Name = "Jump Value", Default = Config.Exploits.JumpValue, Minimum = 50, Maximum = 500, Callback = function(v) Config.Exploits.JumpValue = v end})
-
-ExploitSection:Toggle({
-    Name = "Hitbox Expander", 
-    Default = Config.Exploits.Hitbox, 
-    Callback = function(v) 
-        Config.Exploits.Hitbox = v
-        ToggleHitbox(v)
-    end
+local SilentAimToggle = MainTab:CreateToggle({
+    Name = "Silent Aim (Bắn đâu trúng đó)",
+    CurrentValue = Config.Aimbot.SilentAim,
+    Flag = "SilentAimToggle",
+    Callback = function(Value) Config.Aimbot.SilentAim = Value end,
 })
-ExploitSection:Slider({
-    Name = "Hitbox Size", 
-    Default = Config.Exploits.HitboxSize, 
-    Minimum = 5, 
-    Maximum = 50, 
-    Callback = function(v) 
-        Config.Exploits.HitboxSize = v 
+local CamLockToggle = MainTab:CreateToggle({
+    Name = "Khóa Camera",
+    CurrentValue = Config.Aimbot.CameraLock,
+    Flag = "CamLockToggle",
+    Callback = function(Value) Config.Aimbot.CameraLock = Value end,
+})
+local TeamCheckToggle = MainTab:CreateToggle({
+    Name = "Check Team (Không bắn đồng đội)",
+    CurrentValue = Config.Aimbot.TeamCheck,
+    Flag = "TeamCheck",
+    Callback = function(Value) Config.Aimbot.TeamCheck = Value end,
+})
+local WallCheckToggle = MainTab:CreateToggle({
+    Name = "Wall Check (Không bắn xuyên tường)",
+    CurrentValue = Config.Aimbot.WallCheck,
+    Flag = "WallCheck",
+    Callback = function(Value) Config.Aimbot.WallCheck = Value end,
+})
+local DeadCheckToggle = MainTab:CreateToggle({
+    Name = "Check Dead (Không bắn người chết)",
+    CurrentValue = Config.Aimbot.DeadCheck,
+    Flag = "DeadCheck",
+    Callback = function(Value) Config.Aimbot.DeadCheck = Value end,
+})
+
+local TargetDropdown = MainTab:CreateDropdown({
+    Name = "Vị trí Aim (Target Part)",
+    Options = {"Head", "UpperTorso", "LowerTorso", "LeftLeg", "RightLeg"},
+    CurrentOption = {"Head"},
+    MultipleOptions = false,
+    Flag = "TargetPart",
+    Callback = function(Options) Config.Aimbot.TargetPart = Options[1] end,
+})
+
+local SmoothSlider = MainTab:CreateSlider({
+    Name = "Độ Mượt (Smoothness)",
+    Range = {10, 100},
+    Increment = 1,
+    Suffix = "%",
+    CurrentValue = Config.Aimbot.Smoothness * 100,
+    Flag = "Smoothness",
+    Callback = function(Value) Config.Aimbot.Smoothness = Value / 100 end,
+})
+local FOVSlider = MainTab:CreateSlider({
+    Name = "Bán Kính FOV",
+    Range = {50, 800},
+    Increment = 10,
+    Suffix = "px",
+    CurrentValue = Config.Aimbot.FOV,
+    Flag = "FOVRadius",
+    Callback = function(Value) Config.Aimbot.FOV = Value end,
+})
+local AimKeybind = MainTab:CreateKeybind({
+    Name = "Phím Aim (Hold)",
+    CurrentKeybind = Config.Aimbot.Keybind,
+    HoldToInteract = false,
+    Flag = "AimKey",
+    Callback = function(Key) Config.Aimbot.Keybind = Key end,
+})
+
+MainTab:CreateSection("Cấu Hình ESP (Visual)")
+local ESPToggle = MainTab:CreateToggle({
+    Name = "Bật ESP",
+    CurrentValue = Config.ESP.Enabled,
+    Flag = "ESPToggle",
+    Callback = function(Value) Config.ESP.Enabled = Value end,
+})
+local RainbowToggle = MainTab:CreateToggle({
+    Name = "Chế Độ Cầu Vồng (Rainbow)",
+    CurrentValue = Config.ESP.Rainbow,
+    Flag = "RainbowToggle",
+    Callback = function(Value) Config.ESP.Rainbow = Value end,
+})
+local BoxToggle = MainTab:CreateToggle({
+    Name = "Box ESP",
+    CurrentValue = Config.ESP.Box,
+    Flag = "BoxESP",
+    Callback = function(Value) Config.ESP.Box = Value end,
+})
+local RingToggle = MainTab:CreateToggle({
+    Name = "Ring ESP (Vòng kẻ)",
+    CurrentValue = Config.ESP.Ring,
+    Flag = "RingESP",
+    Callback = function(Value) Config.ESP.Ring = Value end,
+})
+local HealthToggle = MainTab:CreateToggle({
+    Name = "Thanh Máu (Health Bar)",
+    CurrentValue = Config.ESP.Health,
+    Flag = "HealthESP",
+    Callback = function(Value) Config.ESP.Health = Value end,
+})
+
+-- TAB: EXPLOITS
+local ExploitTab = Window:CreateTab("Exploits", 4483362458)
+ExploitTab:CreateSection("Di Chuyển")
+local SpeedToggle = ExploitTab:CreateToggle({
+    Name = "Tốc Độ (Speed Hack)",
+    CurrentValue = Config.Exploits.Speed,
+    Flag = "SpeedToggle",
+    Callback = function(Value) Config.Exploits.Speed = Value end,
+})
+local SpeedSlider = ExploitTab:CreateSlider({
+    Name = "Giá Trị Tốc Độ",
+    Range = {16, 250},
+    Increment = 1,
+    Suffix = "spd",
+    CurrentValue = Config.Exploits.SpeedValue,
+    Flag = "SpeedValue",
+    Callback = function(Value) Config.Exploits.SpeedValue = Value end,
+})
+local JumpToggle = ExploitTab:CreateToggle({
+    Name = "Nhảy Cao (Jump Hack)",
+    CurrentValue = Config.Exploits.Jump,
+    Flag = "JumpToggle",
+    Callback = function(Value) Config.Exploits.Jump = Value end,
+})
+local JumpSlider = ExploitTab:CreateSlider({
+    Name = "Giá Trị Nhảy",
+    Range = {50, 500},
+    Increment = 5,
+    Suffix = "pwr",
+    CurrentValue = Config.Exploits.JumpValue,
+    Flag = "JumpValue",
+    Callback = function(Value) Config.Exploits.JumpValue = Value end,
+})
+
+ExploitTab:CreateSection("Hitbox")
+local HitboxToggle = ExploitTab:CreateToggle({
+    Name = "Tăng Hitbox (Hitbox Expander)",
+    CurrentValue = Config.Exploits.Hitbox,
+    Flag = "HitboxToggle",
+    Callback = function(Value) 
+        Config.Exploits.Hitbox = Value
+        ToggleHitbox(Value)
+    end,
+})
+local HitboxSlider = ExploitTab:CreateSlider({
+    Name = "Kích Thước Hitbox",
+    Range = {5, 50},
+    Increment = 1,
+    Suffix = "size",
+    CurrentValue = Config.Exploits.HitboxSize,
+    Flag = "HitboxSize",
+    Callback = function(Value) 
+        Config.Exploits.HitboxSize = Value 
         if Config.Exploits.Hitbox then ToggleHitbox(true) end
-    end
+    end,
 })
 
-ConfigSection:Header({Name = "Configuration"})
-ConfigSection:Button({Name = "Save Settings", Callback = function() 
-    SaveConfig() 
-    Window:Notify({Title = "Config", Description = "Settings saved successfully."})
-end})
-ConfigSection:Button({Name = "Load Settings", Callback = function() 
-    LoadConfig()
-    Window:Notify({Title = "Config", Description = "Settings loaded successfully."})
-end})
+-- QUẢN LÝ CONFIG
+ExploitTab:CreateSection("Cấu Hình (JSON)")
+local SaveBtn = ExploitTab:CreateButton({
+    Name = "Lưu Cấu Hình",
+    Callback = function()
+        SaveConfig()
+        Rayfield:Notify({Title = "Lưu Thành Công", Content = "Đã lưu cấu hình vào File JSON", Duration = 3})
+    end,
+})
 
+-- TỰ ĐỘNG CẬP NHẬT HITBOX KHI RESPAWN
 Services.Players.PlayerAdded:Connect(function(p)
     p.CharacterAdded:Connect(function(c)
         if Config.Exploits.Hitbox then task.wait(1) ToggleHitbox(true) end
