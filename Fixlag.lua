@@ -1,6 +1,6 @@
--- [[ NOVAX OPTIMIZER V2 - FLUENT UI ]]
--- Tác giả: Nhism
--- Bản chất: Tối ưu hoá phần cứng thực sự (Engine Tweaks, Instance Culling, Network).
+-- [[ NOVAX OPTIMIZER V4 - EXTREME PERFORMANCE ]]
+-- Author: Nhism
+-- Purpose: Deep engine intervention, aggressive memory management, and graphical culling to reduce heat and maximize FPS.
 
 if not game:IsLoaded() then game.Loaded:Wait() end
 if not getgenv then getgenv = function() return _G end end
@@ -11,268 +11,308 @@ local Services = {
     Workspace = game:GetService("Workspace"),
     RunService = game:GetService("RunService"),
     SoundService = game:GetService("SoundService"),
-    Debris = game:GetService("Debris")
+    CoreGui = game:GetService("CoreGui")
 }
 
 local LocalPlayer = Services.Players.LocalPlayer
 local Terrain = Services.Workspace.Terrain
+local Camera = Services.Workspace.CurrentCamera
 
--- Khởi tạo UI Library Fluent
+-- Load Fluent UI
 local Fluent = loadstring(game:HttpGet("https://github.com/dawid-scripts/Fluent/releases/latest/download/main.lua"))()
 local SaveManager = loadstring(game:HttpGet("https://raw.githubusercontent.com/dawid-scripts/Fluent/master/Addons/SaveManager.lua"))()
 local InterfaceManager = loadstring(game:HttpGet("https://raw.githubusercontent.com/dawid-scripts/Fluent/master/Addons/InterfaceManager.lua"))()
 
 local Window = Fluent:CreateWindow({
-    Title = "NovaX Optimizer V2",
-    SubTitle = "Thực Chiến Fix Lag - By Nhism",
+    Title = "NovaX Optimizer V4",
+    SubTitle = "Extreme Performance Engine | By Nhism",
     TabWidth = 160,
-    Size = UDim2.fromOffset(580, 460),
-    Acrylic = true,
+    Size = UDim2.fromOffset(620, 500),
+    Acrylic = false, -- Disabled for performance
     Theme = "Dark",
-    MinimizeKey = Enum.KeyCode.LeftControl
+    MinimizeKey = Enum.KeyCode.RightShift
 })
 
 local Tabs = {
-    Home = Window:AddTab({ Title = "Home", Icon = "zap" }),
-    Settings = Window:AddTab({ Title = "Settings", Icon = "settings" }),
+    Performance = Window:AddTab({ Title = "Performance", Icon = "zap" }),
+    Engine = Window:AddTab({ Title = "Engine & Network", Icon = "cpu" }),
+    Memory = Window:AddTab({ Title = "Memory & Heat", Icon = "hard-drive" }),
     Info = Window:AddTab({ Title = "Info", Icon = "info" })
 }
 
 local Options = Fluent.Options
 
--- ==========================================
--- BIẾN TRẠNG THÁI CẤU HÌNH
--- ==========================================
+-- [ CONFIGURATION STATE ]
 local Config = {
-    Shadows = false,
-    Particles = false,
-    Textures = false,
-    Lighting = false,
-    Terrain = false,
-    PlayerParts = false,
-    EngineSettings = false,
-    SoundOptimize = false
+    GraphicsCulling = false,
+    PlayerCulling = false,
+    ParticleCulling = false,
+    TerrainCulling = false,
+    EngineTweaks = false,
+    NetworkTweaks = false,
+    AutoGC = true,
+    HideOtherPlayers = false
 }
 
--- [ HÀM XỬ LÝ TỐI ƯU THỰC TẾ ]
+-- [ CORE FUNCTIONS ]
 
--- 1. Tắt Bóng Đổ (Shadows) - Giảm tải GPU
-local function ApplyShadows()
-    Services.Lighting.GlobalShadows = not Config.Shadows
-end
-
--- 2. Dọn Dẹp Hạt (Particles) - Giảm tải CPU/GPU (Chạy liên tục)
-local function ApplyParticles(inst)
-    if inst:IsA("ParticleEmitter") or inst:IsA("Smoke") or inst:IsA("Fire") or inst:IsA("Sparkles") or inst:IsA("Explosion") then
-        if Config.Particles then
-            inst.Enabled = false
-        end
-    end
-end
-
--- 3. Ẩn Hình Ảnh (Textures)
-local function ApplyTextures(inst)
-    if inst:IsA("Decal") or inst:IsA("Texture") then
-        inst.Transparency = Config.Textures and 1 or 0
-    end
-end
-
--- 4. Tắt Hiệu Ứng Ánh Sáng (Post-Processing)
-local function ApplyLighting()
+-- 1. Deep Graphics Culling
+local function ApplyGraphicsCulling()
+    Services.Lighting.GlobalShadows = not Config.GraphicsCulling
+    
     for _, v in pairs(Services.Lighting:GetChildren()) do
-        if v:IsA("PostEffect") or v:IsA("Atmosphere") or v:IsA("Sky") then
-            v.Enabled = not Config.Lighting
+        if v:IsA("PostEffect") or v:IsA("Atmosphere") or v:IsA("Sky") or v:IsA("Clouds") then
+            v.Enabled = not Config.GraphicsCulling
         end
     end
-    if Config.Lighting then
+    
+    if Config.GraphicsCulling then
         Services.Lighting.FogEnd = 100000
         Services.Lighting.FogStart = 100000
+        Services.Lighting.Brightness = 1
+        Services.Lighting.EnvironmentDiffuseScale = 0
+        Services.Lighting.EnvironmentSpecularScale = 0
     end
 end
 
--- 5. Tối Ưu Địa Hình (Terrain) & Vật Thể Xa
-local function ApplyTerrain()
-    Terrain.WaterWaveSize = Config.Terrain and 0 or 0.15
-    Terrain.WaterWaveSpeed = Config.Terrain and 0 or 10
-    Terrain.WaterReflectance = Config.Terrain and 0 or 0.1
-    Terrain.WaterTransparency = Config.Terrain and 1 or 0.3
+-- 2. Particle & Texture Culling (Dynamic)
+local function CullInstance(inst)
+    if inst:IsA("ParticleEmitter") or inst:IsA("Smoke") or inst:IsA("Fire") or inst:IsA("Sparkles") or inst:IsA("Explosion") then
+        if Config.ParticleCulling then inst.Enabled = false end
+    elseif inst:IsA("Decal") or inst:IsA("Texture") then
+        if Config.GraphicsCulling then inst.Transparency = 1 end
+    end
 end
 
--- 6. Ẩn Phụ Kiện Người Chơi Khác - Giảm Tải CPU Đáng Kể
-local function ApplyPlayerParts()
+-- 3. Terrain Culling
+local function ApplyTerrainCulling()
+    if Config.TerrainCulling then
+        Terrain.WaterWaveSize = 0
+        Terrain.WaterWaveSpeed = 0
+        Terrain.WaterReflectance = 0
+        Terrain.WaterTransparency = 1
+        pcall(function() Terrain:Clear() end) -- Clears heavy grass/details
+    end
+end
+
+-- 4. Player Culling (Hide accessories/clothes)
+local function ApplyPlayerCulling()
     for _, plr in pairs(Services.Players:GetPlayers()) do
         if plr ~= LocalPlayer and plr.Character then
             for _, v in pairs(plr.Character:GetDescendants()) do
                 if v:IsA("Accessory") or v:IsA("Shirt") or v:IsA("Pants") or v:IsA("CharacterMesh") then
-                    if v:IsA("BasePart") or v:IsA("Model") then
-                        v.Transparency = Config.PlayerParts and 1 or 0
-                    elseif v:IsA("Shirt") or v:IsA("Pants") then
-                        v.Transparency = Config.PlayerParts and 1 or 0
-                    end
+                    if v:IsA("BasePart") then v.LocalTransparencyModifier = Config.PlayerCulling and 1 or 0 end
+                    if v:IsA("Clothing") then v.Transparency = Config.PlayerCulling and 1 or 0 end
+                end
+                if Config.HideOtherPlayers and v:IsA("BasePart") and v.Name ~= "HumanoidRootPart" then
+                    v.LocalTransparencyModifier = 1
                 end
             end
         end
     end
 end
 
--- 7. Can Thiệp Engine & Network (Settings)
-local function ApplyEngineSettings()
+-- 5. Engine Tweaks (Settings API)
+local function ApplyEngineTweaks()
     pcall(function()
-        if Config.EngineSettings then
+        if Config.EngineTweaks then
             settings().Rendering.QualityLevel = Enum.QualityLevel.Level01
-            settings().Network.IncomingReplicationLag = 10 -- Giảm lag mạng
+            settings().Rendering.MeshPartDetailLevel = Enum.MeshPartDetailLevel.Level01
             settings().Physics.PhysicsEnvironmentalThrottle = Enum.EnviromentalPhysicsThrottle.Disabled
+            settings().Physics.MaxPhysicsStepsPerFrame = 1
+            settings().Physics.AllowSleep = true
         else
             settings().Rendering.QualityLevel = Enum.QualityLevel.Automatic
+            settings().Rendering.MeshPartDetailLevel = Enum.MeshPartDetailLevel.Automatic
+            settings().Physics.PhysicsEnvironmentalThrottle = Enum.EnviromentalPhysicsThrottle.DefaultAuto
+            settings().Physics.MaxPhysicsStepsPerFrame = 4
+        end
+    end)
+end
+
+-- 6. Network Tweaks (Reduce CPU Load)
+local function ApplyNetworkTweaks()
+    pcall(function()
+        if Config.NetworkTweaks then
+            settings().Network.IncomingReplicationLag = 100 -- Reduces network overhead / CPU spikes
+        else
             settings().Network.IncomingReplicationLag = 0
         end
     end)
 end
 
--- 8. Tối Ưu Âm Thanh
-local function ApplySoundOptimize()
-    Services.SoundService.AmbientReverb = Config.SoundOptimize and Enum.ReverbType.NoReverb or Enum.ReverbType.Generic
-    for _, v in pairs(Services.Workspace:GetDescendants()) do
-        if v:IsA("Sound") and v.Playing then
-            if Config.SoundOptimize then
-                v.Playing = false
+-- 7. Memory Cleanup (Garbage Collection & Cache Clear)
+local function ForceCleanMemory()
+    pcall(function()
+        -- Destroy useless instances
+        for _, v in ipairs(Services.Workspace:GetDescendants()) do
+            if v:IsA("Explosion") or (v:IsA("Sound") and not v.Playing) then
+                v:Destroy()
             end
         end
-    end
+        -- Clear Terrain if culling is on
+        if Config.TerrainCulling then
+            Terrain:Clear()
+        end
+    end)
+    -- Force Lua Garbage Collector
+    collectgarbage("collect")
+    collectgarbage("setpause", 100)
+    collectgarbage("setstepmul", 200)
 end
 
-
--- [ SỰ KIỆN LIÊN TỤC - CỰC KỲ QUAN TRỌNG ĐỂ CHỐNG LAG DYNAMIC ]
-Services.Workspace.DescendantAdded:Connect(function(inst)
-    ApplyParticles(inst)
-    ApplyTextures(inst)
-end)
+-- [ EVENT LISTENERS ]
+Services.Workspace.DescendantAdded:Connect(CullInstance)
 
 Services.Players.PlayerAdded:Connect(function(plr)
     plr.CharacterAdded:Connect(function()
-        task.wait(1)
-        ApplyPlayerParts()
+        task.wait(1.5)
+        ApplyPlayerCulling()
     end)
 end)
 
--- ==========================================
--- TAB: HOME (CHỨC NĂNG)
--- ==========================================
-Tabs.Home:AddSection("Tối Ưu Hoá Đồ Hoạ (Giảm Tải GPU)")
-Tabs.Home:AddToggle("T_Shadows", { Title = "Tắt Bóng Đổ (Global Shadows)", Description = "Tắt đổ bóng của môi trường và nhân vật.", Default = false })
-Options.T_Shadows:OnChanged(function(Value)
-    Config.Shadows = Value
-    ApplyShadows()
+-- Auto Cleanup Loop
+task.spawn(function()
+    while task.wait(20) do
+        if Config.AutoGC then
+            ForceCleanMemory()
+        end
+    end
 end)
 
-Tabs.Home:AddToggle("T_Particles", { Title = "Chặn Hiệu Ứng Hạt", Description = "Vô hiệu hoá khói, lửa, kỹ năng, bụi.", Default = false })
-Options.T_Particles:OnChanged(function(Value)
-    Config.Particles = Value
-    for _, v in ipairs(Services.Workspace:GetDescendants()) do ApplyParticles(v) end
-end)
+-- [ UI SETUP ]
+Tabs.Performance:AddSection("Graphics Culling")
+local T_Graphics = Tabs.Performance:AddToggle("T_Graphics", { Title = "Disable Shadows & Post-Effects", Description = "Disables Bloom, Blur, DOF, and Global Shadows.", Default = Config.GraphicsCulling })
+T_Graphics:OnChanged(function(Value) Config.GraphicsCulling = Value; ApplyGraphicsCulling() end)
 
-Tabs.Home:AddToggle("T_Textures", { Title = "Xoá Hình Ảnh (Decals/Textures)", Description = "Ẩn toàn bộ hình xăm, poster, texture bề mặt.", Default = false })
-Options.T_Textures:OnChanged(function(Value)
-    Config.Textures = Value
-    for _, v in ipairs(Services.Workspace:GetDescendants()) do ApplyTextures(v) end
-end)
+local T_Particles = Tabs.Performance:AddToggle("T_Particles", { Title = "Disable Particles & Textures", Description = "Stops rendering Smoke, Fire, and Decals.", Default = Config.ParticleCulling })
+T_Particles:OnChanged(function(Value) Config.ParticleCulling = Value; for _, v in ipairs(Services.Workspace:GetDescendants()) do CullInstance(v) end end)
 
-Tabs.Home:AddToggle("T_Lighting", { Title = "Tắt Hiệu Ứng Ánh Sáng", Description = "Tắt Bloom, Blur, Sương mù, Bầu trời.", Default = false })
-Options.T_Lighting:OnChanged(function(Value)
-    Config.Lighting = Value
-    ApplyLighting()
-end)
+local T_Terrain = Tabs.Performance:AddToggle("T_Terrain", { Title = "Flat Terrain & Water", Description = "Clears terrain details to save massive GPU/CPU usage.", Default = Config.TerrainCulling })
+T_Terrain:OnChanged(function(Value) Config.TerrainCulling = Value; ApplyTerrainCulling() end)
 
+Tabs.Performance:AddSection("Entity Culling")
+local T_PlayerCull = Tabs.Performance:AddToggle("T_PlayerCull", { Title = "Cull Player Accessories", Description = "Hides hats, clothes, and meshes of other players.", Default = Config.PlayerCulling })
+T_PlayerCull:OnChanged(function(Value) Config.PlayerCulling = Value; ApplyPlayerCulling() end)
 
-Tabs.Home:AddSection("Tối Ưu Hoá Môi Trường & Hệ Thống")
-Tabs.Home:AddToggle("T_Terrain", { Title = "Tối Ưu Địa Hình (Terrain)", Description = "Làm phẳng nước, tắt gợn sóng.", Default = false })
-Options.T_Terrain:OnChanged(function(Value)
-    Config.Terrain = Value
-    ApplyTerrain()
-end)
+local T_HidePlayers = Tabs.Performance:AddToggle("T_HidePlayers", { Title = "Hide Other Players (Rendering)", Description = "Makes other players completely invisible to save FPS.", Default = Config.HideOtherPlayers })
+T_HidePlayers:OnChanged(function(Value) Config.HideOtherPlayers = Value; ApplyPlayerCulling() end)
 
-Tabs.Home:AddToggle("T_PlayerParts", { Title = "Ẩn Phụ Kiện Người Chơi Khác", Description = "Cởi đồ, xoá tóc của người khác để giảm lag.", Default = false })
-Options.T_PlayerParts:OnChanged(function(Value)
-    Config.PlayerParts = Value
-    ApplyPlayerParts()
-end)
-
-Tabs.Home:AddToggle("T_Sound", { Title = "Tắt Âm Thanh Rác", Description = "Tắt âm thanh môi trường.", Default = false })
-Options.T_Sound:OnChanged(function(Value)
-    Config.SoundOptimize = Value
-    ApplySoundOptimize()
-end)
-
-Tabs.Home:AddSection("ULTRA PERFORMANCE")
-Tabs.Home:AddToggle("T_Engine", { Title = "Bypass Engine (Ultra FPS)", Description = "Ép Engine Roblox chạy ở mức thấp nhất, giảm Lag mạng.", Default = false })
-Options.T_Engine:OnChanged(function(Value)
-    Config.EngineSettings = Value
-    ApplyEngineSettings()
-end)
-
-Tabs.Home:AddButton({ Title = "KÍCH HOẠT TOÀN BỘ (ULTRA FIX LAG)", Description = "Bật tất cả các chức năng tối ưu cùng lúc", Callback = function()
-    -- Kích hoạt đồng loạt
-    Config.Shadows = true; Options.T_Shadows:SetValue(true)
-    Config.Particles = true; Options.T_Particles:SetValue(true)
-    Config.Textures = true; Options.T_Textures:SetValue(true)
-    Config.Lighting = true; Options.T_Lighting:SetValue(true)
-    Config.Terrain = true; Options.T_Terrain:SetValue(true)
-    Config.PlayerParts = true; Options.T_PlayerParts:SetValue(true)
-    Config.SoundOptimize = true; Options.T_Sound:SetValue(true)
-    Config.EngineSettings = true; Options.T_Engine:SetValue(true)
-    
-    -- Force apply
-    ApplyShadows(); ApplyLighting(); ApplyTerrain(); ApplyPlayerParts(); ApplySoundOptimize(); ApplyEngineSettings()
-    for _, v in ipairs(Services.Workspace:GetDescendants()) do ApplyParticles(v); ApplyTextures(v) end
-    
-    Fluent:Notify({ Title = "Hệ Thống", Content = "Đã kích hoạt toàn bộ cấu hình Fix Lag!", Duration = 5 })
+Tabs.Performance:AddButton({ Title = "MAXIMUM PERFORMANCE OVERRIDE", Description = "Enables ALL graphical and engine optimizations instantly.", Callback = function()
+    T_Graphics:SetValue(true); T_Particles:SetValue(true); T_Terrain:SetValue(true)
+    T_PlayerCull:SetValue(true); T_HidePlayers:SetValue(true); Options.T_Engine:SetValue(true)
+    Options.T_Network:SetValue(true)
+    Fluent:Notify({ Title = "System", Content = "Maximum Performance Mode Activated!", Duration = 5 })
 end })
 
--- ==========================================
--- TAB: SETTINGS (LƯU CONFIG)
--- ==========================================
--- Sử dụng SaveManager của Fluent UI (Tự động lưu trạng thái Toggle)
+-- TAB: ENGINE
+Tabs.Engine:AddSection("Roblox Engine Tweaks")
+local T_Engine = Tabs.Engine:AddToggle("T_Engine", { Title = "Force Low Quality Engine", Description = "Overrides Roblox rendering limits (Level 01).", Default = Config.EngineTweaks })
+T_Engine:OnChanged(function(Value) Config.EngineTweaks = Value; ApplyEngineTweaks() end)
+
+Tabs.Engine:AddSection("Network Optimization")
+local T_Network = Tabs.Engine:AddToggle("T_Network", { Title = "Network Replication Lag Bypass", Description = "Reduces server-to-client data load to prevent CPU spikes.", Default = Config.NetworkTweaks })
+T_Network:OnChanged(function(Value) Config.NetworkTweaks = Value; ApplyNetworkTweaks() end)
+
+Tabs.Engine:AddButton({ Title = "Apply Engine Overrides", Description = "Pushes all engine settings immediately.", Callback = function()
+    ApplyEngineTweaks()
+    ApplyNetworkTweaks()
+    Fluent:Notify({ Title = "System", Content = "Engine Overrides Applied.", Duration = 3 })
+end })
+
+-- TAB: MEMORY
+Tabs.Memory:AddSection("Memory Management")
+local T_AutoGC = Tabs.Memory:AddToggle("T_AutoGC", { Title = "Auto RAM Cleanup", Description = "Clears garbage memory and useless instances every 20s.", Default = Config.AutoGC })
+T_AutoGC:OnChanged(function(Value) Config.AutoGC = Value end)
+
+Tabs.Memory:AddButton({ Title = "Force Memory Cleanup Now", Description = "Triggers Garbage Collector and clears cache.", Callback = function()
+    ForceCleanMemory()
+    Fluent:Notify({ Title = "Memory", Content = "RAM Cleared Successfully!", Duration = 3 })
+end })
+
+-- TAB: INFO
+Tabs.Info:AddParagraph({
+    Title = "NovaX Optimizer V4",
+    Content = "Deep System Intervention Script.\nAuthor: Nhism\n\nThis script deeply modifies the Roblox engine, rendering pipeline, and memory management to drastically lower CPU/GPU temperatures, prevent RAM overflow, and maximize FPS across all games."
+})
+
+Tabs.Info:AddButton({ Title = "Copy Discord Link", Description = "discord.gg/nhism", Callback = function()
+    if setclipboard then setclipboard("https://discord.gg/nhism") end
+    Fluent:Notify({Title="Copied", Content="Discord link copied.", Duration=3})
+end })
+
+-- [ FLOATING TOGGLE BUTTON ]
+local ToggleGui = Instance.new("ScreenGui")
+ToggleGui.Name = "NovaXToggleUI"
+ToggleGui.ResetOnSpawn = false
+ToggleGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+ToggleGui.Parent = Services.CoreGui
+
+local FloatBtn = Instance.new("TextButton")
+FloatBtn.Size = UDim2.new(0, 50, 0, 50)
+FloatBtn.Position = UDim2.new(1, -70, 0.5, -25)
+FloatBtn.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+FloatBtn.Text = "N"
+FloatBtn.TextColor3 = Color3.fromRGB(0, 170, 255)
+FloatBtn.Font = Enum.Font.GothamBlack
+FloatBtn.TextSize = 24
+FloatBtn.Parent = ToggleGui
+
+local FloatCorner = Instance.new("UICorner")
+FloatCorner.CornerRadius = UDim.new(1, 0)
+FloatCorner.Parent = FloatBtn
+
+local FloatStroke = Instance.new("UIStroke")
+FloatStroke.Color = Color3.fromRGB(0, 170, 255)
+FloatStroke.Thickness = 2
+FloatStroke.Parent = FloatBtn
+
+-- Drag Logic for Floating Button
+local dragging, dragInput, dragStart, startPos
+FloatBtn.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+        dragging = true
+        dragStart = input.Position
+        startPos = FloatBtn.Position
+        input.Changed:Connect(function()
+            if input.UserInputState == Enum.UserInputState.End then dragging = false end
+        end)
+    end
+end)
+FloatBtn.InputChanged:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
+        dragInput = input
+    end
+end)
+Services.UserInputService.InputChanged:Connect(function(input)
+    if input == dragInput and dragging then
+        local delta = input.Position - dragStart
+        FloatBtn.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+    end
+end)
+
+-- Toggle Logic
+FloatBtn.MouseButton1Click:Connect(function()
+    if Window.RootFrame.Visible then
+        Window:Minimize()
+    else
+        Window:Restore()
+    end
+end)
+
+-- [ STARTUP ]
 SaveManager:SetLibrary(Fluent)
 InterfaceManager:SetLibrary(Fluent)
-
 SaveManager:IgnoreThemeSettings()
 SaveManager:SetIgnoreIndexes({})
-InterfaceManager:SetFolder("NovaXOptimizer")
-SaveManager:SetFolder("NovaXOptimizer/Configs")
+InterfaceManager:SetFolder("NovaXOptimizerV4")
+SaveManager:SetFolder("NovaXOptimizerV4/Configs")
+InterfaceManager:BuildInterfaceSection(Tabs.Info)
+SaveManager:BuildConfigSection(Tabs.Info)
 
-InterfaceManager:BuildInterfaceSection(Tabs.Settings)
-SaveManager:BuildConfigSection(Tabs.Settings)
-
--- ==========================================
--- TAB: INFO
--- ==========================================
-Tabs.Info:AddParagraph({
-    Title = "Thông Tin Script",
-    Content = "NovaX Optimizer V2\nPhiên bản: Thực Chiến\nTác giả: Nhism\n\nScript hoạt động bằng cách can thiệp trực tiếp vào Engine Render, Networking và Quản lý Bộ nhớ của Roblox để tăng FPS tối đa."
-})
-
-Tabs.Info:AddButton({
-    Title = "Copy Link Discord",
-    Description = "discord.gg/nhism",
-    Callback = function()
-        if setclipboard then setclipboard("https://discord.gg/nhism") end
-        Fluent:Notify({ Title = "Copied", Content = "Đã copy link Discord", Duration = 3 })
-    end
-})
-
-Tabs.Info:AddButton({
-    Title = "Copy Link Website",
-    Description = "nhism.com",
-    Callback = function()
-        if setclipboard then setclipboard("https://nhism.com") end
-        Fluent:Notify({ Title = "Copied", Content = "Đã copy link Website", Duration = 3 })
-    end
-})
-
--- Khởi động UI
 Window:SelectTab(1)
 Fluent:Notify({
-    Title = "NovaX Optimizer V2",
-    Content = "Đã tải thành công. Nhấn LeftControl để ẩn/hiện.",
+    Title = "NovaX Optimizer V4",
+    Content = "Loaded. Press [RightShift] or click the [N] button to toggle UI.",
     Duration = 6
 })
