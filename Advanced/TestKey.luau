@@ -1,19 +1,14 @@
---[[
-    HỆ THỐNG KEY UI MACOS LIQUID GLASS (V7)
-    Tác giả: Nhism
-    
-    [ CẤU HÌNH HỆ THỐNG TỪ BÊN NGOÀI ]
-    getgenv().Key = "NHISM-PREMIUM-999"
-    getgenv().id = "153601438942"
-    getgenv().Script_Mode = "Main" -- Các chế độ: "Main", "Kaitun", "Aimbot", "Fixlag"
-]]
+-- [[ HỆ THỐNG KEY UI MACOS LIQUID GLASS (V7.1 STANDALONE) ]]
+-- Tác giả: Nhism
+-- Bản vá lỗi Executor: Hỗ trợ CoreGui fallback, chống crash loadstring.
 
--- [ CHỐNG SPAM EXECUTOR (QUY TẮC 6) ]
+-- [ BẢO VỆ MÔI TRƯỜNG ]
+if not getgenv then getgenv = function() return _G end end
 if not getgenv().NhismLoadCount then getgenv().NhismLoadCount = 0 end
 getgenv().NhismLoadCount = getgenv().NhismLoadCount + 1
 
 if getgenv().NhismLoadCount >= 10 then
-    game:GetService("Players").LocalPlayer:Kick("[Nhism Hub] Anti-Cheat: Detected Executor Spam (>= 10 times).")
+    game:GetService("Players").LocalPlayer:Kick("[Nhism Hub] Anti-Cheat: Executor Spam Detected.")
     return
 end
 
@@ -25,50 +20,39 @@ local Services = {
     UserInputService = game:GetService("UserInputService"),
     CoreGui = game:GetService("CoreGui"),
     HttpService = game:GetService("HttpService"),
-    RunService = game:GetService("RunService"),
-    Lighting = game:GetService("Lighting")
+    RunService = game:GetService("RunService")
 }
 
 local Player = Services.Players.LocalPlayer
 local IsMobile = Services.UserInputService.TouchEnabled and not Services.UserInputService.KeyboardEnabled
-local ScreenGuiName = "NhismKeySystem_V7"
+local ScreenGuiName = "NhismKeySystem_V7_1"
 local JsonFileName = "Nhism_Config_V7.json"
 
--- [ CẤU HÌNH HỆ THỐNG TỪ BÊN NGOÀI ]
+-- [ CẤU HÌNH TỪ BÊN NGOÀI ]
 local Config = {
     Key = getgenv().Key or "",
     ID = getgenv().id or "Unknown_ID",
     Script_Mode = getgenv().Script_Mode or "Main"
 }
 
--- [ DANH SÁCH ID DISCORD ĐƯỢC PHÉP (WHITELIST) ]
-local AllowedIDs = {
-    ["153601438942"] = true,
-    ["129198757199"] = true
-}
-
--- [ DATABASE KEY ]
+local AllowedIDs = { ["153601438942"] = true, ["129198757199"] = true }
 local FreeKeys = {"NHISM-FREE-111", "NHISM-FREE-222"}
 local PremiumKeys = {"NHISM-PREMIUM-999", "NHISM-PREMIUM-888"}
 
--- [ DANH SÁCH GAME HỖ TRỢ ]
 local SupportedGames = {
-    [2753915549] = "Blox Fruits", 
-    [4442272183] = "Blox Fruits",
-    [7449423635] = "Blox Fruits",
-    [18437661052] = "Steal A Egg"
+    [2753915549] = "Blox Fruits", [4442272183] = "Blox Fruits",
+    [7449423635] = "Blox Fruits", [18437661052] = "Steal A Egg"
 }
 local CurrentGameName = SupportedGames[game.PlaceId]
 
--- [ LOGIC KICK GAME KHÔNG HỖ TRỢ ]
+-- [ KIỂM TRA GAME ]
 if not CurrentGameName then
-    Player:Kick("[Nhism Hub] Unsupported Game. Please play Blox Fruits or Steal A Egg.")
+    Player:Kick("[Nhism Hub] Game Not Supported. Please play Blox Fruits or Steal A Egg.")
     return
 end
 
--- [ HÀM CHẠY SCRIPT CHÍNH & TÍCH HỢP SCRIPT MODE ]
+-- [ HÀM CHẠY SCRIPT CHÍNH ]
 local function ExecuteGameScript(isPremium)
-    -- THAY LINK SCRIPT RAW CỦA BẠN VÀO ĐÂY THEO TỪNG MODE
     local ScriptURLs = {
         Main = "https://raw.githubusercontent.com/yourname/yourrepo/main/main.lua",
         Kaitun = "https://raw.githubusercontent.com/yourname/yourrepo/main/kaitun.lua",
@@ -80,11 +64,13 @@ local function ExecuteGameScript(isPremium)
 
     if TargetURL ~= "" and TargetURL:find("http") then
         local success, err = pcall(function()
-            loadstring(game:HttpGet(TargetURL))()
+            if type(loadstring) == "function" then
+                loadstring(game:HttpGet(TargetURL))()
+            else
+                warn("[Nhism Hub] Executor không hỗ trợ loadstring.")
+            end
         end)
-        if not success then
-            warn("[Nhism Hub] Lỗi tải script: " .. tostring(err))
-        end
+        if not success then warn("[Nhism Hub] Lỗi tải script: " .. tostring(err)) end
     else
         print("[Hệ Thống] Chưa cài đặt Link Script cho Mode: " .. Config.Script_Mode)
     end
@@ -110,7 +96,7 @@ if Config.Key ~= "" then
     end
 end
 
--- [ HÀM HỖ TRỢ FILE JSON ]
+-- [ HÀM HỖ TRỢ FILE JSON AN TOÀN ]
 local function SafeReadFile(fileName)
     if isfile and readfile then
         local success, result = pcall(function()
@@ -122,32 +108,35 @@ local function SafeReadFile(fileName)
 end
 
 local function SafeWriteFile(fileName, content)
-    if writefile then
-        pcall(function() writefile(fileName, content) end)
-    end
+    if writefile then pcall(function() writefile(fileName, content) end) end
 end
 
--- Tải Key đã lưu
 local SavedKey = ""
 local fileData = SafeReadFile(JsonFileName)
 if fileData then
     local success, result = pcall(function() return Services.HttpService:JSONDecode(fileData) end)
-    if success and result and result.Key then
-        SavedKey = result.Key
-    end
+    if success and result and result.Key then SavedKey = result.Key end
 end
 
--- Dọn dẹp UI cũ
-if Services.CoreGui:FindFirstChild(ScreenGuiName) then
-    Services.CoreGui:FindFirstChild(ScreenGuiName):Destroy()
+-- [ XÁC ĐỊNH PARENT CHO UI (CHỐNG LỖI EXECUTOR CHẶN COREGUI) ]
+local ParentGui = Services.CoreGui
+if gethui then
+    local success, hui = pcall(gethui)
+    if success and hui then ParentGui = hui end
+elseif Player:FindFirstChild("PlayerGui") then
+    ParentGui = Player.PlayerGui
 end
 
--- [ KHỞI TẠO UI - LIQUID GLASS LIGHT ]
+if ParentGui:FindFirstChild(ScreenGuiName) then
+    ParentGui:FindFirstChild(ScreenGuiName):Destroy()
+end
+
+-- [ KHỞI TẠO UI ]
 local ScreenGui = Instance.new("ScreenGui")
 ScreenGui.Name = ScreenGuiName
 ScreenGui.ResetOnSpawn = false
 ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
-ScreenGui.Parent = Services.CoreGui
+ScreenGui.Parent = ParentGui
 
 local MainFrame = Instance.new("Frame")
 MainFrame.Name = "MainFrame"
@@ -159,7 +148,6 @@ MainFrame.BackgroundTransparency = 0.15
 MainFrame.BorderSizePixel = 0
 MainFrame.Parent = ScreenGui
 
--- Hiệu ứng Kính Lỏng (Liquid Glass)
 local UICorner = Instance.new("UICorner")
 UICorner.CornerRadius = UDim.new(0, 16)
 UICorner.Parent = MainFrame
@@ -203,7 +191,7 @@ for i, color in ipairs({Color3.fromRGB(255, 95, 86), Color3.fromRGB(255, 189, 46
     c.Parent = dot
 end
 
--- [ LOGIC KÉO THẢ ]
+-- Kéo thả
 local dragging, dragInput, dragStart, startPos
 TitleBar.InputBegan:Connect(function(input)
     if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
@@ -216,9 +204,7 @@ TitleBar.InputBegan:Connect(function(input)
     end
 end)
 TitleBar.InputChanged:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
-        dragInput = input
-    end
+    if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then dragInput = input end
 end)
 Services.UserInputService.InputChanged:Connect(function(input)
     if input == dragInput and dragging then
@@ -314,7 +300,6 @@ KeyPage.Size = UDim2.new(1, 0, 1, 0)
 KeyPage.BackgroundTransparency = 1
 KeyPage.Parent = ContentContainer
 
--- [ RAINBOW TITLE ]
 local Title = Instance.new("TextLabel")
 Title.Size = UDim2.new(1, 0, 0, 30)
 Title.BackgroundTransparency = 1
@@ -335,9 +320,7 @@ TitleGradient.Color = ColorSequence.new{
 TitleGradient.Parent = Title
 
 Services.RunService.RenderStepped:Connect(function()
-    if TitleGradient then
-        TitleGradient.Rotation = (tick() * 80) % 360
-    end
+    if TitleGradient then TitleGradient.Rotation = (tick() * 80) % 360 end
 end)
 
 local Subtitle = Instance.new("TextLabel")
@@ -351,7 +334,6 @@ Subtitle.TextSize = 12
 Subtitle.TextXAlignment = Enum.TextXAlignment.Left
 Subtitle.Parent = KeyPage
 
--- Input Frame
 local InputFrame = Instance.new("Frame")
 InputFrame.Size = UDim2.new(1, -20, 0, 42)
 InputFrame.Position = UDim2.new(0, 0, 0, 60)
@@ -400,7 +382,6 @@ PasteBtn.MouseButton1Click:Connect(function()
     end
 end)
 
--- Button Grid (4 Nút)
 local function CreateButton(text, pos, color, textColor)
     local btn = Instance.new("TextButton")
     btn.Size = UDim2.new(0.5, -5, 0, 42)
@@ -447,14 +428,7 @@ local InfTxt = Instance.new("TextLabel")
 InfTxt.Size = UDim2.new(1, 0, 1, -30)
 InfTxt.Position = UDim2.new(0, 0, 0, 30)
 InfTxt.BackgroundTransparency = 1
-InfTxt.Text = string.format([[
-    Time: %s
-    Mode: %s
-    Game: %s
-    Version: 7.0.0
-    
-    Developer: Nhism
-]], os.date("%H:%M:%S - %d/%m/%Y"), Config.Script_Mode, CurrentGameName)
+InfTxt.Text = string.format("Time: %s\nMode: %s\nGame: %s\nVersion: 7.1.0\n\nDeveloper: Nhism", os.date("%H:%M:%S - %d/%m/%Y"), Config.Script_Mode, CurrentGameName)
 InfTxt.TextColor3 = Color3.fromRGB(50, 50, 50)
 InfTxt.Font = Enum.Font.Gotham
 InfTxt.TextSize = 13
@@ -462,14 +436,11 @@ InfTxt.TextXAlignment = Enum.TextXAlignment.Left
 InfTxt.TextYAlignment = Enum.TextYAlignment.Top
 InfTxt.Parent = InfoPage
 
--- Tab Switching (Animation Mượt)
 local function SwitchTab(showPage, hidePage, activeBtn, inactiveBtn)
     hidePage.Visible = false
     showPage.Visible = true
-    
     showPage.Position = UDim2.new(0, 15, 0, 0)
     Services.TweenService:Create(showPage, TweenInfo.new(0.3, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), {Position = UDim2.new(0, 0, 0, 0)}):Play()
-    
     Services.TweenService:Create(activeBtn, TweenInfo.new(0.2), {BackgroundTransparency = 0.6, TextColor3 = Color3.fromRGB(0, 0, 0)}):Play()
     Services.TweenService:Create(inactiveBtn, TweenInfo.new(0.2), {BackgroundTransparency = 1, TextColor3 = Color3.fromRGB(50, 50, 50)}):Play()
 end
@@ -477,7 +448,6 @@ end
 KeyTabBtn.MouseButton1Click:Connect(function() SwitchTab(KeyPage, InfoPage, KeyTabBtn, InfoTabBtn) end)
 InfoTabBtn.MouseButton1Click:Connect(function() SwitchTab(InfoPage, KeyPage, InfoTabBtn, KeyTabBtn) end)
 
--- [ NOTIFICATION SYSTEM - IOS 27 APPLE STYLE ]
 local function ShowNotification(title, text, isSuccess)
     local Notif = Instance.new("Frame")
     Notif.Size = UDim2.new(0, 300, 0, 65)
@@ -486,11 +456,9 @@ local function ShowNotification(title, text, isSuccess)
     Notif.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
     Notif.BackgroundTransparency = 0.1
     Notif.Parent = ScreenGui
-    
     local c = Instance.new("UICorner")
-    c.CornerRadius = UDim.new(0, 32) -- Pill Shape
+    c.CornerRadius = UDim.new(0, 32)
     c.Parent = Notif
-    
     local s = Instance.new("UIStroke")
     s.Color = Color3.fromRGB(255, 255, 255)
     s.Transparency = 0.3
@@ -519,10 +487,7 @@ local function ShowNotification(title, text, isSuccess)
     NText.TextXAlignment = Enum.TextXAlignment.Left
     NText.Parent = Notif
 
-    -- iOS Spring Animation
-    local targetPos = UDim2.new(0.5, 0, 0, 20)
-    Services.TweenService:Create(Notif, TweenInfo.new(0.6, Enum.EasingStyle.Elastic, Enum.EasingDirection.Out), {Position = targetPos}):Play()
-    
+    Services.TweenService:Create(Notif, TweenInfo.new(0.6, Enum.EasingStyle.Elastic, Enum.EasingDirection.Out), {Position = UDim2.new(0.5, 0, 0, 20)}):Play()
     task.delay(3, function()
         local out = Services.TweenService:Create(Notif, TweenInfo.new(0.4, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {Position = UDim2.new(0.5, 0, 0, -120)})
         out:Play()
@@ -531,7 +496,6 @@ local function ShowNotification(title, text, isSuccess)
     end)
 end
 
--- Button Clicks
 GetKeyBtn.MouseButton1Click:Connect(function()
     if setclipboard then pcall(function() setclipboard("https://link-to-your-key-system.com") end) end
     ShowNotification("Copied", "Key link copied.", true)
@@ -547,7 +511,6 @@ WebsiteBtn.MouseButton1Click:Connect(function()
     ShowNotification("Copied", "Website link copied.", true)
 end)
 
--- [ LOGIC SUBMIT VÀ LƯU JSON ]
 SubmitBtn.MouseButton1Click:Connect(function()
     local enteredKey = KeyInput.Text
     local isPremium = false
@@ -561,4 +524,20 @@ SubmitBtn.MouseButton1Click:Connect(function()
         SafeWriteFile(JsonFileName, jsonData)
         
         ShowNotification("Authenticated", "Key is valid. Loading...", true)
-        tas
+        task.wait(1)
+        
+        local closeTween = Services.TweenService:Create(MainFrame, TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {Position = UDim2.new(0.5, 0, 1.5, 0)})
+        closeTween:Play()
+        closeTween.Completed:Wait()
+        
+        ScreenGui:Destroy()
+        ExecuteGameScript(isPremium)
+    else
+        ShowNotification("Failed", "Invalid key.", false)
+                KeyInput.Text = ""
+        task.wait(1)
+        Player:Kick("[Nhism Hub] Invalid Key Attempt.")
+    end
+end)
+
+SwitchTab(KeyPage, InfoPage, KeyTabBtn, InfoTabBtn)
