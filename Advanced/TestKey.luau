@@ -1,16 +1,21 @@
 --[[
-    HỆ THỐNG KEY UI MACOS LIGHT (UPDATE V3)
+    HỆ THỐNG KEY UI MACOS LIGHT (UPDATE V4)
     Tác giả: Nhism
     
-    [ HƯỚNG DẪN CẤU HÌNH & SỬ DỤNG ]
-    1. Thêm Script: Tìm hàm `ExecuteGameScript(isPremium)` bên dưới, thay thế chuỗi "URL_SCRIPT_CUA_BAN" bằng link raw script thực tế.
-    2. Thêm Key: Tìm bảng `FreeKeys` và `PremiumKeys` bên dưới để điền key.
-    3. Cách dùng Config ngoài: 
-       Chạy đoạn code sau trước khi load script này:
-       getgenv().Key = "NHISM-PREMIUM-999"
-       getgenv().id = "ID_Discord_Cua_Ban"
-       getgenv().Script_Mode = "Kaitun" -- hoặc "Main"
-       loadstring(game:HttpGet("Link_Script_UI_Nay"))()
+    [ HƯỚNG DẪN SỬ DỤNG CONFIG CHUẨN XÁC ]
+    Lỗi của bạn nằm ở cú pháp loadstring lồng nhau sai quy tắc.
+    Để chạy Script qua Config, hãy dùng đúng cú pháp sau:
+    
+    getgenv().Key = "NHISM-PREMIUM-999"
+    getgenv().id = "153601438942"
+    getgenv().Script_Mode = "Main" -- Hoặc "Kaitun"
+    loadstring(game:HttpGet("https://raw.githubusercontent.com/pichunii/TestServer/refs/heads/main/Advanced/TestKey.luau"))()
+    
+    [ THAY ĐỔI V4 ]
+    - Fix toàn bộ lỗi UI, kéo thả, neo màn hình.
+    - Thêm logic Kaitun/Main độc lập.
+    - Thêm danh sách ID Discord được phép.
+    - Thêm Rainbow Effect cho Title.
 ]]
 
 -- Services
@@ -19,17 +24,24 @@ local TweenService = game:GetService("TweenService")
 local UserInputService = game:GetService("UserInputService")
 local CoreGui = game:GetService("CoreGui")
 local HttpService = game:GetService("HttpService")
+local RunService = game:GetService("RunService")
 
 local Player = Players.LocalPlayer
 local IsMobile = UserInputService.TouchEnabled and not UserInputService.KeyboardEnabled
-local ScreenGuiName = "NhismKeySystem_V3"
+local ScreenGuiName = "NhismKeySystem_V4"
 local JsonFileName = "Nhism_Config.json"
 
--- [ CẤU HÌNH HỆ THỐNG ]
+-- [ CẤU HÌNH HỆ THỐNG TỪ BÊN NGOÀI ]
 local Config = {
     Key = getgenv().Key or "",
     ID = getgenv().id or "Unknown_ID",
-    Script_Mode = getgenv().Script_Mode or "Main"
+    Script_Mode = getgenv().Script_Mode or "Main" -- "Main" hoặc "Kaitun"
+}
+
+-- [ DANH SÁCH ID DISCORD ĐƯỢC PHÉP (WHITELIST) ]
+local AllowedIDs = {
+    ["153601438942"] = true,
+    ["129198757199"] = true
 }
 
 -- [ DATABASE KEY ]
@@ -48,53 +60,56 @@ local CurrentGameName = SupportedGames[game.PlaceId]
 
 -- [ LOGIC KICK GAME KHÔNG HỖ TRỢ ]
 if not CurrentGameName then
-    Player:Kick("[Nhism Hub] Unsupported Game. Please play Blox Fruits or Steal A Egg.")
+    Player:Kick("[Nhism Hub] Unsupported Game.")
     return
 end
 
--- [ HÀM CHẠY SCRIPT CHÍNH (CHUNG CHO FREE/PREMIUM) ]
+-- [ HÀM CHẠY SCRIPT THEO MODE ]
 local function ExecuteGameScript(isPremium)
-    local ScriptURL = "" -- THAY LINK SCRIPT RAW VÀO ĐÂY
+    local MainScriptURL = "" -- THAY LINK SCRIPT MAIN VÀO ĐÂY
+    local KaitunScriptURL = "" -- THAY LINK SCRIPT KAITUN VÀO ĐÂY (ScriptCuaBan)
     
-    if isPremium then
-        -- Xử lý script Premium (nếu cần)
-        print("[Hệ Thống] Đang tải Premium Script...")
+    local TargetURL = ""
+    
+    if Config.Script_Mode == "Kaitun" then
+        TargetURL = KaitunScriptURL
     else
-        -- Xử lý script Free
-        print("[Hệ Thống] Đang tải Free Script...")
+        TargetURL = MainScriptURL
     end
 
-    if ScriptURL ~= "" then
-        loadstring(game:HttpGet(ScriptURL))()
+    if TargetURL ~= "" then
+        loadstring(game:HttpGet(TargetURL))()
     else
-        warn("[Hệ Thống] Chưa cài đặt Link Script trong hàm ExecuteGameScript.")
+        print("[Hệ Thống] Chưa cài đặt Link Script cho Mode: " .. Config.Script_Mode)
     end
 end
 
--- [ KIỂM TRA CONFIG TỰ ĐỘNG (QUY TẮC 6) ]
+-- [ KIỂM TRA CONFIG TỰ ĐỘNG (BỎ QUA UI NẾU CÓ KEY) ]
 if Config.Key ~= "" then
-    local isConfigKeyValid = false
-    for _, k in ipairs(FreeKeys) do if Config.Key == k then isConfigKeyValid = true break end end
-    if not isConfigKeyValid then
-        for _, k in ipairs(PremiumKeys) do if Config.Key == k then isConfigKeyValid = true break end end
-    end
+    local isValid = false
+    for _, k in ipairs(FreeKeys) do if Config.Key == k then isValid = true break end end
+    if not isValid then for _, k in ipairs(PremiumKeys) do if Config.Key == k then isValid = true break end end end
 
-    if isConfigKeyValid then
-        ExecuteGameScript(Config.Key:find("PREM") ~= nil)
-        return -- Chạy xong script, không hiện UI
+    if isValid then
+        -- Kiểm tra ID Discord có trong Whitelist không (Tùy chọn)
+        if AllowedIDs[Config.ID] or Config.ID == "Unknown_ID" then
+            ExecuteGameScript(Config.Key:find("PREM") ~= nil)
+            return -- Chạy thẳng script, không hiện UI
+        else
+            Player:Kick("[Nhism Hub] Config ID Discord không hợp lệ.")
+            return
+        end
     else
-        Player:Kick("[Nhism Hub] Invalid Config Key.")
+        Player:Kick("[Nhism Hub] Config Key không hợp lệ.")
         return
     end
 end
 
--- [ KIỂM TRA FILE JSON LƯU KEY (QUY TẮC 3) ]
+-- [ KIỂM TRA FILE JSON LƯU KEY ]
 local SavedKey = ""
 if isfile(JsonFileName) then
     local success, result = pcall(function() return HttpService:JSONDecode(readfile(JsonFileName)) end)
-    if success and result.Key then
-        SavedKey = result.Key
-    end
+    if success and result.Key then SavedKey = result.Key end
 end
 
 -- Dọn dẹp UI cũ
@@ -109,13 +124,13 @@ ScreenGui.ResetOnSpawn = false
 ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 ScreenGui.Parent = CoreGui
 
--- Main Window (Neo giữa màn hình - Quy tắc 5)
+-- Main Window (Fix lỗi lệch màn hình)
 local MainFrame = Instance.new("Frame")
 MainFrame.Name = "MainFrame"
 MainFrame.Size = UDim2.new(0, 600, 0, 400)
-MainFrame.AnchorPoint = Vector2.new(0.5, 0.5) -- Fix lỗi lệch màn hình
+MainFrame.AnchorPoint = Vector2.new(0.5, 0.5)
 MainFrame.Position = UDim2.new(0.5, 0, 0.5, 0)
-MainFrame.BackgroundColor3 = Color3.fromRGB(245, 245, 245)
+MainFrame.BackgroundColor3 = Color3.fromRGB(250, 250, 250)
 MainFrame.BorderSizePixel = 0
 MainFrame.Parent = ScreenGui
 
@@ -128,23 +143,16 @@ UIStroke.Color = Color3.fromRGB(200, 200, 200)
 UIStroke.Thickness = 1
 UIStroke.Parent = MainFrame
 
--- Scale cho Mobile
 local UIScale = Instance.new("UIScale")
 UIScale.Parent = MainFrame
 UIScale.Scale = IsMobile and 0.7 or 1
 
--- Title Bar (MacOS Style - Quy tắc 1)
+-- Title Bar (MacOS Style)
 local TitleBar = Instance.new("Frame")
 TitleBar.Size = UDim2.new(1, 0, 0, 40)
-TitleBar.BackgroundColor3 = Color3.fromRGB(230, 230, 230)
 TitleBar.BackgroundTransparency = 1
 TitleBar.Parent = MainFrame
 
-local TitleCorner = Instance.new("UICorner")
-TitleCorner.CornerRadius = UDim.new(0, 10)
-TitleCorner.Parent = TitleBar
-
--- Nút MacOS (Đỏ, Vàng, Xanh)
 for i, color in ipairs({Color3.fromRGB(255, 95, 86), Color3.fromRGB(255, 189, 46), Color3.fromRGB(39, 201, 63)}) do
     local dot = Instance.new("Frame")
     dot.Size = UDim2.new(0, 12, 0, 12)
@@ -156,7 +164,7 @@ for i, color in ipairs({Color3.fromRGB(255, 95, 86), Color3.fromRGB(255, 189, 46
     c.Parent = dot
 end
 
--- [ LOGIC KÉO THẢ FIX LỖI (QUY TẮC 5) ]
+-- [ FIX LỖI KÉO THẢ UI ]
 local dragging, dragInput, dragStart, startPos
 TitleBar.InputBegan:Connect(function(input)
     if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
@@ -165,16 +173,12 @@ TitleBar.InputBegan:Connect(function(input)
         startPos = MainFrame.Position
         
         input.Changed:Connect(function()
-            if input.UserInputState == Enum.UserInputState.End then
-                dragging = false
-            end
+            if input.UserInputState == Enum.UserInputState.End then dragging = false end
         end)
     end
 end)
 TitleBar.InputChanged:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
-        dragInput = input
-    end
+    if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then dragInput = input end
 end)
 UserInputService.InputChanged:Connect(function(input)
     if input == dragInput and dragging then
@@ -183,18 +187,17 @@ UserInputService.InputChanged:Connect(function(input)
     end
 end)
 
--- Sidebar (Menu Trái)
+-- Sidebar
 local Sidebar = Instance.new("Frame")
 Sidebar.Size = UDim2.new(0, 180, 1, -50)
 Sidebar.Position = UDim2.new(0, 10, 0, 40)
-Sidebar.BackgroundColor3 = Color3.fromRGB(235, 235, 235)
+Sidebar.BackgroundColor3 = Color3.fromRGB(240, 240, 240)
 Sidebar.Parent = MainFrame
-
 local SidebarCorner = Instance.new("UICorner")
 SidebarCorner.CornerRadius = UDim.new(0, 8)
 SidebarCorner.Parent = Sidebar
 
--- Profile (Góc dưới bên trái - Quy tắc 1)
+-- Profile (Góc dưới bên trái)
 local ProfileFrame = Instance.new("Frame")
 ProfileFrame.Size = UDim2.new(1, -20, 0, 50)
 ProfileFrame.AnchorPoint = Vector2.new(0, 1)
@@ -234,7 +237,7 @@ IdLabel.TextSize = 11
 IdLabel.TextXAlignment = Enum.TextXAlignment.Left
 IdLabel.Parent = ProfileFrame
 
--- Tab Buttons (Không dùng Emoji)
+-- Tab Buttons
 local function CreateTabButton(name, text, yPos)
     local btn = Instance.new("TextButton")
     btn.Name = name
@@ -270,15 +273,30 @@ KeyPage.Size = UDim2.new(1, 0, 1, 0)
 KeyPage.BackgroundTransparency = 1
 KeyPage.Parent = ContentContainer
 
+-- [ RAINBOW TITLE EFFECT ]
 local Title = Instance.new("TextLabel")
 Title.Size = UDim2.new(1, 0, 0, 30)
 Title.BackgroundTransparency = 1
 Title.Text = "Authentication"
-Title.TextColor3 = Color3.fromRGB(0, 0, 0)
+Title.TextColor3 = Color3.fromRGB(255, 255, 255)
 Title.Font = Enum.Font.GothamBlack
 Title.TextSize = 22
 Title.TextXAlignment = Enum.TextXAlignment.Left
 Title.Parent = KeyPage
+
+local TitleGradient = Instance.new("UIGradient")
+TitleGradient.Color = ColorSequence.new{
+    ColorSequenceKeypoint.new(0, Color3.fromRGB(255, 0, 128)),
+    ColorSequenceKeypoint.new(0.33, Color3.fromRGB(128, 0, 255)),
+    ColorSequenceKeypoint.new(0.66, Color3.fromRGB(0, 128, 255)),
+    ColorSequenceKeypoint.new(1, Color3.fromRGB(255, 0, 128))
+}
+TitleGradient.Parent = Title
+
+-- Animation Rainbow
+RunService.RenderStepped:Connect(function()
+    TitleGradient.Rotation = (tick() * 80) % 360
+end)
 
 local Subtitle = Instance.new("TextLabel")
 Subtitle.Size = UDim2.new(1, 0, 0, 20)
@@ -308,7 +326,7 @@ local KeyInput = Instance.new("TextBox")
 KeyInput.Size = UDim2.new(1, -90, 1, 0)
 KeyInput.Position = UDim2.new(0, 10, 0, 0)
 KeyInput.BackgroundTransparency = 1
-KeyInput.Text = SavedKey -- Load từ JSON
+KeyInput.Text = SavedKey
 KeyInput.PlaceholderText = "Enter Key Here..."
 KeyInput.TextColor3 = Color3.fromRGB(0, 0, 0)
 KeyInput.PlaceholderColor3 = Color3.fromRGB(150, 150, 150)
@@ -378,7 +396,6 @@ InfoTitle.TextSize = 20
 InfoTitle.TextXAlignment = Enum.TextXAlignment.Left
 InfoTitle.Parent = InfoPage
 
-local InfoText = Enum.Font.Gotham
 local InfTxt = Instance.new("TextLabel")
 InfTxt.Size = UDim2.new(1, 0, 1, -30)
 InfTxt.Position = UDim2.new(0, 0, 0, 30)
@@ -387,7 +404,7 @@ InfTxt.Text = string.format([[
     Time: %s
     Mode: %s
     Game: %s
-    Version: 3.0.0
+    Version: 4.0.0
     
     Developer: Nhism
     Discord: discord.gg/nhism
@@ -399,11 +416,10 @@ InfTxt.TextXAlignment = Enum.TextXAlignment.Left
 InfTxt.TextYAlignment = Enum.TextYAlignment.Top
 InfTxt.Parent = InfoPage
 
--- Tab Switching & Animation
+-- Tab Switching
 local function SwitchTab(showPage, hidePage, activeBtn, inactiveBtn)
     hidePage.Visible = false
     showPage.Visible = true
-    
     TweenService:Create(activeBtn, TweenInfo.new(0.2), {BackgroundTransparency = 0.8, BackgroundColor3 = Color3.fromRGB(200, 200, 200)}):Play()
     TweenService:Create(inactiveBtn, TweenInfo.new(0.2), {BackgroundTransparency = 1, BackgroundColor3 = Color3.fromRGB(255, 255, 255)}):Play()
 end
@@ -411,7 +427,7 @@ end
 KeyTabBtn.MouseButton1Click:Connect(function() SwitchTab(KeyPage, InfoPage, KeyTabBtn, InfoTabBtn) end)
 InfoTabBtn.MouseButton1Click:Connect(function() SwitchTab(InfoPage, KeyPage, InfoTabBtn, KeyTabBtn) end)
 
--- Notification UI
+-- Notification
 local function ShowNotification(title, text, isSuccess)
     local Notif = Instance.new("Frame")
     Notif.Size = UDim2.new(0, 300, 0, 60)
@@ -473,25 +489,19 @@ SubmitBtn.MouseButton1Click:Connect(function()
     if not isValid then for _, k in ipairs(PremiumKeys) do if enteredKey == k then isValid = true; isPremium = true; break end end end
 
     if isValid then
-        -- Lưu Key vào JSON
         local jsonData = HttpService:JSONEncode({Key = enteredKey})
         if writefile then writefile(JsonFileName, jsonData) end
         
         ShowNotification("Authenticated", "Key is valid. Loading script...", true)
         task.wait(1)
-        
-        -- Tắt hẳn UI
         ScreenGui:Destroy()
-        
-        -- Chạy Script Chung
         ExecuteGameScript(isPremium)
     else
         ShowNotification("Authentication Failed", "Invalid key.", false)
         KeyInput.Text = ""
         task.wait(1)
-        Player:Kick("[Nhism Hub] Invalid Key Attempt.") -- Quy tắc 6: Nhập sai trong UI = Kick
+        Player:Kick("[Nhism Hub] Invalid Key Attempt.")
     end
 end)
 
--- Khởi tạo trạng thái Tab ban đầu
 SwitchTab(KeyPage, InfoPage, KeyTabBtn, InfoTabBtn)
