@@ -1,0 +1,625 @@
+-- SERVICES
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
+local StarterGui = game:GetService("StarterGui")
+
+-- VARIABLES
+local localPlayer = Players.LocalPlayer
+local camera = workspace.CurrentCamera
+
+local aimEnabled = false
+local camlockActive = true
+local targetPartName = "HumanoidRootPart"
+local smoothingAmount = 0.15
+local guiVisible = true
+local aimGuiRef = nil
+local lockedPlayer = nil
+local maxLockDistance = 200
+local hardLockMode = false
+local fovCircleVisible = true
+local fovCircleRadius = 150
+local fovCircleRef = nil
+
+-- CLEANUP FUNCTION
+local function cleanup()
+	aimEnabled = false
+	lockedPlayer = nil
+	
+	if aimGuiRef then
+		aimGuiRef:Destroy()
+		aimGuiRef = nil
+	end
+	
+	if fovCircleRef then
+		fovCircleRef:Destroy()
+		fovCircleRef = nil
+	end
+end
+
+-- FOV CIRCLE CREATION
+local function createFovCircle()
+	if fovCircleRef then fovCircleRef:Destroy() end
+	
+	local screenGui = Instance.new("ScreenGui")
+	screenGui.Name = "FovCircle"
+	screenGui.ResetOnSpawn = false
+	screenGui.Parent = localPlayer:WaitForChild("PlayerGui")
+	fovCircleRef = screenGui
+	
+	local circle = Instance.new("Frame")
+	circle.Name = "Circle"
+	circle.Size = UDim2.new(0, fovCircleRadius * 2, 0, fovCircleRadius * 2)
+	circle.Position = UDim2.new(0.5, -fovCircleRadius, 0.5, -fovCircleRadius)
+	circle.BackgroundTransparency = 1
+	circle.Parent = screenGui
+	
+	local corner = Instance.new("UICorner")
+	corner.CornerRadius = UDim.new(0.5, 0)
+	corner.Parent = circle
+	
+	local stroke = Instance.new("UIStroke")
+	stroke.Color = Color3.fromRGB(255, 255, 255)
+	stroke.Thickness = 2
+	stroke.Transparency = 0.7
+	stroke.Parent = circle
+	
+	screenGui.Enabled = fovCircleVisible
+	
+	-- Update circle position to follow mouse
+	RunService.Heartbeat:Connect(function()
+		if fovCircleRef and fovCircleRef.Parent then
+			local mouse = localPlayer:GetMouse()
+			circle.Position = UDim2.new(0, mouse.X - fovCircleRadius, 0, mouse.Y - fovCircleRadius)
+		end
+	end)
+end
+
+-- GUI CREATION
+local function createGUI()
+	if aimGuiRef then aimGuiRef:Destroy() end
+
+	local screenGui = Instance.new("ScreenGui")
+	screenGui.Name = "AimSelector"
+	screenGui.ResetOnSpawn = false
+	screenGui.Parent = localPlayer:WaitForChild("PlayerGui")
+	aimGuiRef = screenGui
+
+	-- Main Frame with simple black background
+	local frame = Instance.new("Frame")
+	frame.Size = UDim2.new(0, 220, 0, 655)
+	frame.Position = UDim2.new(1, -240, 0.2, 0)
+	frame.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+	frame.BorderSizePixel = 0
+	frame.Active = true
+	frame.Draggable = true
+	frame.Parent = screenGui
+
+	-- Frame corner radius
+	local frameCorner = Instance.new("UICorner")
+	frameCorner.CornerRadius = UDim.new(0, 12)
+	frameCorner.Parent = frame
+
+	-- Frame stroke (blue)
+	local frameStroke = Instance.new("UIStroke")
+	frameStroke.Color = Color3.fromRGB(0, 120, 255)
+	frameStroke.Thickness = 2
+	frameStroke.Transparency = 0.3
+	frameStroke.Parent = frame
+
+	-- Title
+	local title = Instance.new("TextLabel")
+	title.Size = UDim2.new(1, 0, 0, 40)
+	title.Position = UDim2.new(0, 0, 0, 0)
+	title.BackgroundTransparency = 1
+	title.Text = ".trapaholics."
+	title.TextColor3 = Color3.fromRGB(255, 255, 255)
+	title.Font = Enum.Font.Antique
+	title.TextSize = 20
+	title.TextStrokeTransparency = 0.8
+	title.TextStrokeColor3 = Color3.fromRGB(0, 0, 0)
+	title.Parent = frame
+
+	-- Subtitle
+	local subtitle = Instance.new("TextLabel")
+	subtitle.Size = UDim2.new(1, 0, 0, 20)
+	subtitle.Position = UDim2.new(0, 0, 0, 35)
+	subtitle.BackgroundTransparency = 1
+	subtitle.Text = "aim lock"
+	subtitle.TextColor3 = Color3.fromRGB(255, 255, 255)
+	subtitle.Font = Enum.Font.Antique
+	subtitle.TextSize = 14
+	subtitle.Parent = frame
+
+	-- Body parts section
+	local bodyParts = {
+		["Head"] = "Head",
+		["Torso"] = "HumanoidRootPart",
+		["Left Arm"] = "Left Arm",
+		["Right Arm"] = "Right Arm",
+		["Left Leg"] = "Left Leg",
+		["Right Leg"] = "Right Leg"
+	}
+
+	local y = 60
+	for displayName, partName in pairs(bodyParts) do
+		local button = Instance.new("TextButton")
+		button.Size = UDim2.new(1, -20, 0, 30)
+		button.Position = UDim2.new(0, 10, 0, y)
+		button.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+		button.TextColor3 = Color3.fromRGB(255, 255, 255)
+		button.Font = Enum.Font.Antique
+		button.TextSize = 15
+		button.Text = displayName
+		button.Parent = frame
+
+		-- Button styling
+		local buttonCorner = Instance.new("UICorner")
+		buttonCorner.CornerRadius = UDim.new(0, 8)
+		buttonCorner.Parent = button
+
+		local buttonStroke = Instance.new("UIStroke")
+		buttonStroke.Color = Color3.fromRGB(0, 120, 255)
+		buttonStroke.Thickness = 1
+		buttonStroke.Transparency = 0.5
+		buttonStroke.Parent = button
+
+		-- Hover effect
+		button.MouseEnter:Connect(function()
+			button.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+		end)
+
+		button.MouseLeave:Connect(function()
+			button.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+		end)
+
+		button.MouseButton1Click:Connect(function()
+			targetPartName = partName
+			StarterGui:SetCore("SendNotification", {
+				Title = "Target Changed",
+				Text = "Now aiming at: " .. displayName,
+				Duration = 2
+			})
+		end)
+
+		y = y + 35
+	end
+
+	-- Toggle buttons section
+	local toggleBtn = Instance.new("TextButton")
+	toggleBtn.Size = UDim2.new(1, -20, 0, 30)
+	toggleBtn.Position = UDim2.new(0, 10, 0, y + 10)
+	toggleBtn.Font = Enum.Font.Antique
+	toggleBtn.TextSize = 16
+	toggleBtn.TextColor3 = Color3.new(1, 1, 1)
+	toggleBtn.BackgroundColor3 = Color3.fromRGB(0, 150, 0)
+	toggleBtn.Text = "Camlock: ON"
+	toggleBtn.Parent = frame
+
+	local toggleCorner = Instance.new("UICorner")
+	toggleCorner.CornerRadius = UDim.new(0, 8)
+	toggleCorner.Parent = toggleBtn
+
+	local function updateToggleBtn()
+		if camlockActive then
+			toggleBtn.Text = "Camlock: ON"
+			toggleBtn.BackgroundColor3 = Color3.fromRGB(0, 150, 0)
+		else
+			toggleBtn.Text = "Camlock: OFF"
+			toggleBtn.BackgroundColor3 = Color3.fromRGB(150, 0, 0)
+		end
+	end
+
+	toggleBtn.MouseButton1Click:Connect(function()
+		camlockActive = not camlockActive
+		aimEnabled = false
+		lockedPlayer = nil
+		updateToggleBtn()
+		StarterGui:SetCore("SendNotification", {
+			Title = "Camlock Toggled",
+			Text = camlockActive and "Camlock is now ON" or "Camlock is now OFF",
+			Duration = 2
+		})
+	end)
+
+	updateToggleBtn()
+
+	-- Hard Lock Mode Toggle
+	local hardLockBtn = Instance.new("TextButton")
+	hardLockBtn.Size = UDim2.new(1, -20, 0, 30)
+	hardLockBtn.Position = UDim2.new(0, 10, 0, y + 45)
+	hardLockBtn.Font = Enum.Font.Antique
+	hardLockBtn.TextSize = 16
+	hardLockBtn.TextColor3 = Color3.new(1, 1, 1)
+	hardLockBtn.BackgroundColor3 = Color3.fromRGB(150, 0, 0)
+	hardLockBtn.Text = "Hard Lock: OFF"
+	hardLockBtn.Parent = frame
+
+	local hardLockCorner = Instance.new("UICorner")
+	hardLockCorner.CornerRadius = UDim.new(0, 8)
+	hardLockCorner.Parent = hardLockBtn
+
+	local function updateHardLockBtn()
+		if hardLockMode then
+			hardLockBtn.Text = "Hard Lock: ON"
+			hardLockBtn.BackgroundColor3 = Color3.fromRGB(0, 150, 0)
+		else
+			hardLockBtn.Text = "Hard Lock: OFF"
+			hardLockBtn.BackgroundColor3 = Color3.fromRGB(150, 0, 0)
+		end
+	end
+
+	hardLockBtn.MouseButton1Click:Connect(function()
+		hardLockMode = not hardLockMode
+		updateHardLockBtn()
+		StarterGui:SetCore("SendNotification", {
+			Title = "Hard Lock Mode",
+			Text = hardLockMode and "100% Lock ENABLED (Anti-Recoil)" or "Smooth Lock ENABLED",
+			Duration = 2
+		})
+	end)
+
+	updateHardLockBtn()
+
+	-- FOV Circle Toggle
+	local fovToggleBtn = Instance.new("TextButton")
+	fovToggleBtn.Size = UDim2.new(1, -20, 0, 30)
+	fovToggleBtn.Position = UDim2.new(0, 10, 0, y + 80)
+	fovToggleBtn.Font = Enum.Font.Antique
+	fovToggleBtn.TextSize = 16
+	fovToggleBtn.TextColor3 = Color3.new(1, 1, 1)
+	fovToggleBtn.BackgroundColor3 = Color3.fromRGB(0, 150, 0)
+	fovToggleBtn.Text = "FOV Circle: ON"
+	fovToggleBtn.Parent = frame
+
+	local fovToggleCorner = Instance.new("UICorner")
+	fovToggleCorner.CornerRadius = UDim.new(0, 8)
+	fovToggleCorner.Parent = fovToggleBtn
+
+	local function updateFovToggleBtn()
+		if fovCircleVisible then
+			fovToggleBtn.Text = "FOV Circle: ON"
+			fovToggleBtn.BackgroundColor3 = Color3.fromRGB(0, 150, 0)
+		else
+			fovToggleBtn.Text = "FOV Circle: OFF"
+			fovToggleBtn.BackgroundColor3 = Color3.fromRGB(150, 0, 0)
+		end
+	end
+
+	fovToggleBtn.MouseButton1Click:Connect(function()
+		fovCircleVisible = not fovCircleVisible
+		if fovCircleRef then fovCircleRef.Enabled = fovCircleVisible end
+		updateFovToggleBtn()
+		StarterGui:SetCore("SendNotification", {
+			Title = "FOV Circle",
+			Text = fovCircleVisible and "FOV Circle is now ON" or "FOV Circle is now OFF",
+			Duration = 2
+		})
+	end)
+
+	updateFovToggleBtn()
+
+	-- Smoothing Slider
+	local smoothLabel = Instance.new("TextLabel")
+	smoothLabel.Size = UDim2.new(1, -20, 0, 25)
+	smoothLabel.Position = UDim2.new(0, 10, 0, y + 120)
+	smoothLabel.BackgroundTransparency = 1
+	smoothLabel.Text = "Smoothing: " .. string.format("%.2f", smoothingAmount)
+	smoothLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+	smoothLabel.Font = Enum.Font.Antique
+	smoothLabel.TextSize = 16
+	smoothLabel.TextXAlignment = Enum.TextXAlignment.Left
+	smoothLabel.Parent = frame
+
+	local sliderBG = Instance.new("Frame")
+	sliderBG.Size = UDim2.new(1, -20, 0, 20)
+	sliderBG.Position = UDim2.new(0, 10, 0, y + 150)
+	sliderBG.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+	sliderBG.BorderSizePixel = 0
+	sliderBG.Parent = frame
+
+	local sliderCorner = Instance.new("UICorner")
+	sliderCorner.CornerRadius = UDim.new(0, 10)
+	sliderCorner.Parent = sliderBG
+
+	local sliderFill = Instance.new("Frame")
+	sliderFill.Size = UDim2.new((smoothingAmount - 0.05) / 0.3, 0, 1, 0)
+	sliderFill.Position = UDim2.new(0, 0, 0, 0)
+	sliderFill.BackgroundColor3 = Color3.fromRGB(0, 120, 255)
+	sliderFill.BorderSizePixel = 0
+	sliderFill.Parent = sliderBG
+
+	local sliderFillCorner = Instance.new("UICorner")
+	sliderFillCorner.CornerRadius = UDim.new(0, 10)
+	sliderFillCorner.Parent = sliderFill
+
+	local sliderButton = Instance.new("TextButton")
+	sliderButton.Size = UDim2.new(1, 0, 1, 0)
+	sliderButton.Position = UDim2.new(0, 0, 0, 0)
+	sliderButton.BackgroundTransparency = 1
+	sliderButton.Text = ""
+	sliderButton.Parent = sliderBG
+
+	local dragging = false
+
+	sliderButton.InputBegan:Connect(function(input)
+		if input.UserInputType == Enum.UserInputType.MouseButton1 then
+			dragging = true
+		end
+	end)
+
+	sliderButton.InputEnded:Connect(function(input)
+		if input.UserInputType == Enum.UserInputType.MouseButton1 then
+			dragging = false
+		end
+	end)
+
+	UserInputService.InputChanged:Connect(function(input)
+		if dragging and input.UserInputType == Enum.UserInputType.MouseMovement then
+			local relativeX = math.clamp((input.Position.X - sliderBG.AbsolutePosition.X) / sliderBG.AbsoluteSize.X, 0, 1)
+			smoothingAmount = math.clamp(0.05 + (1 - relativeX) * 0.3, 0.05, 0.35)
+			smoothLabel.Text = "Smoothing: " .. string.format("%.2f", smoothingAmount)
+			sliderFill.Size = UDim2.new((smoothingAmount - 0.05) / 0.3, 0, 1, 0)
+		end
+	end)
+
+	-- FOV Circle Size Slider
+	local fovLabel = Instance.new("TextLabel")
+	fovLabel.Size = UDim2.new(1, -20, 0, 25)
+	fovLabel.Position = UDim2.new(0, 10, 0, y + 180)
+	fovLabel.BackgroundTransparency = 1
+	fovLabel.Text = "FOV Size: " .. tostring(fovCircleRadius)
+	fovLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+	fovLabel.Font = Enum.Font.Antique
+	fovLabel.TextSize = 16
+	fovLabel.TextXAlignment = Enum.TextXAlignment.Left
+	fovLabel.Parent = frame
+
+	local fovSliderBG = Instance.new("Frame")
+	fovSliderBG.Size = UDim2.new(1, -20, 0, 20)
+	fovSliderBG.Position = UDim2.new(0, 10, 0, y + 210)
+	fovSliderBG.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+	fovSliderBG.BorderSizePixel = 0
+	fovSliderBG.Parent = frame
+
+	local fovSliderCorner = Instance.new("UICorner")
+	fovSliderCorner.CornerRadius = UDim.new(0, 10)
+	fovSliderCorner.Parent = fovSliderBG
+
+	local fovSliderFill = Instance.new("Frame")
+	fovSliderFill.Size = UDim2.new((fovCircleRadius - 50) / 200, 0, 1, 0)
+	fovSliderFill.Position = UDim2.new(0, 0, 0, 0)
+	fovSliderFill.BackgroundColor3 = Color3.fromRGB(0, 120, 255)
+	fovSliderFill.BorderSizePixel = 0
+	fovSliderFill.Parent = fovSliderBG
+
+	local fovSliderFillCorner = Instance.new("UICorner")
+	fovSliderFillCorner.CornerRadius = UDim.new(0, 10)
+	fovSliderFillCorner.Parent = fovSliderFill
+
+	local fovSliderButton = Instance.new("TextButton")
+	fovSliderButton.Size = UDim2.new(1, 0, 1, 0)
+	fovSliderButton.Position = UDim2.new(0, 0, 0, 0)
+	fovSliderButton.BackgroundTransparency = 1
+	fovSliderButton.Text = ""
+	fovSliderButton.Parent = fovSliderBG
+
+	local fovDragging = false
+
+	fovSliderButton.InputBegan:Connect(function(input)
+		if input.UserInputType == Enum.UserInputType.MouseButton1 then
+			fovDragging = true
+		end
+	end)
+
+	fovSliderButton.InputEnded:Connect(function(input)
+		if input.UserInputType == Enum.UserInputType.MouseButton1 then
+			fovDragging = false
+		end
+	end)
+
+	UserInputService.InputChanged:Connect(function(input)
+		if fovDragging and input.UserInputType == Enum.UserInputType.MouseMovement then
+			local relativeX = math.clamp((input.Position.X - fovSliderBG.AbsolutePosition.X) / fovSliderBG.AbsoluteSize.X, 0, 1)
+			fovCircleRadius = math.clamp(50 + relativeX * 200, 50, 250)
+			fovLabel.Text = "FOV Size: " .. tostring(math.floor(fovCircleRadius))
+			fovSliderFill.Size = UDim2.new((fovCircleRadius - 50) / 200, 0, 1, 0)
+			
+			-- Update FOV circle size
+			if fovCircleRef and fovCircleRef:FindFirstChild("Circle") then
+				local circle = fovCircleRef.Circle
+				circle.Size = UDim2.new(0, fovCircleRadius * 2, 0, fovCircleRadius * 2)
+			end
+		end
+	end)
+
+	-- Max Distance Input
+	local distanceLabel = Instance.new("TextLabel")
+	distanceLabel.Size = UDim2.new(1, -20, 0, 25)
+	distanceLabel.Position = UDim2.new(0, 10, 0, y + 240)
+	distanceLabel.BackgroundTransparency = 1
+	distanceLabel.Text = "Max Distance:"
+	distanceLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+	distanceLabel.Font = Enum.Font.Antique
+	distanceLabel.TextSize = 16
+	distanceLabel.TextXAlignment = Enum.TextXAlignment.Left
+	distanceLabel.Parent = frame
+
+	local distanceBox = Instance.new("TextBox")
+	distanceBox.Size = UDim2.new(1, -20, 0, 30)
+	distanceBox.Position = UDim2.new(0, 10, 0, y + 270)
+	distanceBox.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+	distanceBox.TextColor3 = Color3.new(1, 1, 1)
+	distanceBox.Text = tostring(maxLockDistance)
+	distanceBox.Font = Enum.Font.Antique
+	distanceBox.TextSize = 16
+	distanceBox.ClearTextOnFocus = false
+	distanceBox.PlaceholderText = "Enter max distance"
+	distanceBox.Parent = frame
+
+	local distanceCorner = Instance.new("UICorner")
+	distanceCorner.CornerRadius = UDim.new(0, 8)
+	distanceCorner.Parent = distanceBox
+
+	local distanceStroke = Instance.new("UIStroke")
+	distanceStroke.Color = Color3.fromRGB(0, 120, 255)
+	distanceStroke.Thickness = 1
+	distanceStroke.Transparency = 0.5
+	distanceStroke.Parent = distanceBox
+
+	distanceBox.FocusLost:Connect(function(enterPressed)
+		if enterPressed then
+			local input = tonumber(distanceBox.Text)
+			if input and input >= 50 and input <= 1000 then
+				maxLockDistance = input
+				StarterGui:SetCore("SendNotification", {
+					Title = "Max Distance Updated",
+					Text = "Now using: " .. tostring(maxLockDistance) .. " studs",
+					Duration = 2
+				})
+			else
+				distanceBox.Text = tostring(maxLockDistance)
+				StarterGui:SetCore("SendNotification", {
+					Title = "Invalid Input",
+					Text = "Enter a number between 50 and 1000",
+					Duration = 2
+				})
+			end
+		end
+	end)
+
+	-- Info section
+	local infoLabel = Instance.new("TextLabel")
+	infoLabel.Size = UDim2.new(1, -20, 0, 80)
+	infoLabel.Position = UDim2.new(0, 10, 0, y + 310)
+	infoLabel.BackgroundTransparency = 1
+	infoLabel.Text = "Hard Lock = 100% camera lock\nPerfect recoil control\nRight-click to activate\nKeypad 5 to toggle GUI"
+	infoLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+	infoLabel.Font = Enum.Font.Antique
+	infoLabel.TextSize = 12
+	infoLabel.TextWrapped = true
+	infoLabel.TextXAlignment = Enum.TextXAlignment.Left
+	infoLabel.Parent = frame
+end
+
+-- CLOSEST PLAYER FUNCTION (Respect maxLockDistance and FOV)
+local function getClosestPlayer()
+	local mouse = localPlayer:GetMouse()
+	local mousePos = Vector2.new(mouse.X, mouse.Y)
+	local closestDistance = math.huge
+	local selectedPlayer = nil
+
+	for _, player in ipairs(Players:GetPlayers()) do
+		if player ~= localPlayer and player.Character then
+			local root = player.Character:FindFirstChild("HumanoidRootPart")
+			local part = player.Character:FindFirstChild(targetPartName)
+
+			if root and part then
+				local distance = (localPlayer.Character.HumanoidRootPart.Position - root.Position).Magnitude
+				if distance <= maxLockDistance then
+					local screenPos, onScreen = camera:WorldToViewportPoint(part.Position)
+					if onScreen then
+						local screenDistance = (Vector2.new(screenPos.X, screenPos.Y) - mousePos).Magnitude
+						-- Check if player is within FOV circle
+						if screenDistance <= fovCircleRadius and screenDistance < closestDistance then
+							closestDistance = screenDistance
+							selectedPlayer = player
+						end
+					end
+				end
+			end
+		end
+	end
+
+	return selectedPlayer
+end
+
+-- PREDICTION
+local function getPredictedPosition(player)
+	if not player or not player.Character then return nil end
+	local part = player.Character:FindFirstChild(targetPartName)
+	local root = player.Character:FindFirstChild("HumanoidRootPart")
+	if not part or not root then return nil end
+
+	local distance = (camera.CFrame.Position - root.Position).Magnitude
+	local predictionTime = math.clamp(distance / 250, 0.01, 0.08)
+	return part.Position + (root.Velocity * predictionTime)
+end
+
+-- ENHANCED CAMLOCK RENDER LOOP WITH HARD LOCK MODE
+RunService.RenderStepped:Connect(function()
+	if aimEnabled and camlockActive and lockedPlayer then
+		local targetPos = getPredictedPosition(lockedPlayer)
+		if targetPos then
+			local currentCF = camera.CFrame
+			local targetCF = CFrame.new(currentCF.Position, targetPos)
+			
+			-- Hard Lock Mode: 100% lock (instant) vs Smooth Lock
+			if hardLockMode then
+				camera.CFrame = targetCF -- Instant lock - perfect recoil control
+			else
+				camera.CFrame = currentCF:Lerp(targetCF, smoothingAmount) -- Smooth lock
+			end
+		end
+	end
+end)
+
+-- INPUT HANDLING
+UserInputService.InputBegan:Connect(function(input)
+	if input.UserInputType == Enum.UserInputType.MouseButton2 and camlockActive then
+		aimEnabled = true
+		if not lockedPlayer then
+			lockedPlayer = getClosestPlayer()
+		end
+	end
+
+	if input.KeyCode == Enum.KeyCode.KeypadFive then
+		guiVisible = not guiVisible
+		if aimGuiRef then aimGuiRef.Enabled = guiVisible end
+	end
+end)
+
+UserInputService.InputEnded:Connect(function(input)
+	if input.UserInputType == Enum.UserInputType.MouseButton2 then
+		aimEnabled = false
+		lockedPlayer = nil
+	end
+end)
+
+-- CHARACTER HANDLING (Fixed for :re command)
+local function onCharacterAdded(character)
+	-- Clean up old GUIs first
+	cleanup()
+	
+	local humanoid = character:WaitForChild("Humanoid", 5)
+	if humanoid then
+		humanoid.Died:Connect(function()
+			cleanup()
+		end)
+	end
+
+	-- Wait a bit then recreate GUIs
+	task.delay(2, function()
+		if localPlayer.Character == character then -- Make sure character is still current
+			createGUI()
+			createFovCircle()
+		end
+	end)
+end
+
+-- Handle character removal (for :re command)
+local function onCharacterRemoving(character)
+	cleanup()
+end
+
+-- Connect character events
+if localPlayer.Character then
+	onCharacterAdded(localPlayer.Character)
+end
+
+localPlayer.CharacterAdded:Connect(onCharacterAdded)
+localPlayer.CharacterRemoving:Connect(onCharacterRemoving)
+
+-- Initial creation
+createGUI()
+createFovCircle()
