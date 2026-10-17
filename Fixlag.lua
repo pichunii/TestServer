@@ -1,6 +1,6 @@
--- [[ NOVAX OPTIMIZER - FIX LAG ULTIMATE ]]
+-- [[ NOVAX OPTIMIZER V2 - FLUENT UI ]]
 -- Tác giả: Nhism
--- UI: x2zu Stellar (Dummy UI)
+-- Bản chất: Tối ưu hoá phần cứng thực sự (Engine Tweaks, Instance Culling, Network).
 
 if not game:IsLoaded() then game.Loaded:Wait() end
 if not getgenv then getgenv = function() return _G end end
@@ -9,299 +9,270 @@ local Services = {
     Players = game:GetService("Players"),
     Lighting = game:GetService("Lighting"),
     Workspace = game:GetService("Workspace"),
-    HttpService = game:GetService("HttpService"),
-    RunService = game:GetService("RunService")
+    RunService = game:GetService("RunService"),
+    SoundService = game:GetService("SoundService"),
+    Debris = game:GetService("Debris")
 }
 
 local LocalPlayer = Services.Players.LocalPlayer
 local Terrain = Services.Workspace.Terrain
-local ConfigFile = "NovaX_Optimizer_Config.json"
 
--- [ CẤU HÌNH TRẠNG THÁI ]
-local Config = {
-    DisableShadows = false,
-    DisableParticles = false,
-    DisableTextures = false,
-    DisableLightingEffects = false,
-    OptimizeTerrain = false,
-    UltraFPS = false,
-    WaterTransparency = false
-}
+-- Khởi tạo UI Library Fluent
+local Fluent = loadstring(game:HttpGet("https://github.com/dawid-scripts/Fluent/releases/latest/download/main.lua"))()
+local SaveManager = loadstring(game:HttpGet("https://raw.githubusercontent.com/dawid-scripts/Fluent/master/Addons/SaveManager.lua"))()
+local InterfaceManager = loadstring(game:HttpGet("https://raw.githubusercontent.com/dawid-scripts/Fluent/master/Addons/InterfaceManager.lua"))()
 
--- [ HÀM XỬ LÝ FIX LAG ]
-local function ApplyShadows()
-    Services.Lighting.GlobalShadows = not Config.DisableShadows
-end
-
-local function ApplyParticles()
-    for _, v in pairs(Services.Workspace:GetDescendants()) do
-        if v:IsA("ParticleEmitter") or v:IsA("Smoke") or v:IsA("Fire") or v:IsA("Sparkles") then
-            v.Enabled = not Config.DisableParticles
-        end
-    end
-end
-
-local function ApplyTextures()
-    for _, v in pairs(Services.Workspace:GetDescendants()) do
-        if v:IsA("Decal") or v:IsA("Texture") then
-            v.Transparency = Config.DisableTextures and 1 or 0
-        end
-    end
-end
-
-local function ApplyLightingEffects()
-    for _, v in pairs(Services.Lighting:GetChildren()) do
-        if v:IsA("PostEffect") then
-            v.Enabled = not Config.DisableLightingEffects
-        end
-    end
-    if Config.DisableLightingEffects then
-        Services.Lighting.FogEnd = 1e10
-        Services.Lighting.Brightness = 1
-    end
-end
-
-local function ApplyTerrain()
-    Terrain.WaterWaveSize = Config.OptimizeTerrain and 0 or 0.15
-    Terrain.WaterWaveSpeed = Config.OptimizeTerrain and 0 or 10
-    Terrain.WaterReflectance = Config.OptimizeTerrain and 0 or 0.1
-    if Config.OptimizeTerrain then
-        -- Xoá cỏ và hiệu ứng địa hình nặng
-        Terrain:Clear()
-    end
-end
-
-local function ApplyWater()
-    Terrain.WaterTransparency = Config.WaterTransparency and 1 or 0.3
-end
-
-local function ApplyUltraFPS()
-    if Config.UltraFPS then
-        pcall(function()
-            settings().Rendering.QualityLevel = Enum.QualityLevel.Level01
-        end)
-    else
-        pcall(function()
-            settings().Rendering.QualityLevel = Enum.QualityLevel.Automatic
-        end)
-    end
-end
-
--- Tự động áp dụng lại khi có vật thể mới spawn
-Services.Workspace.DescendantAdded:Connect(function(v)
-    if v:IsA("ParticleEmitter") or v:IsA("Smoke") or v:IsA("Fire") or v:IsA("Sparkles") then
-        if Config.DisableParticles then v.Enabled = false end
-    elseif v:IsA("Decal") or v:IsA("Texture") then
-        if Config.DisableTextures then v.Transparency = 1 end
-    end
-end)
-
--- [ HÀM LƯU / TẢI CONFIG ]
-local function LoadConfig()
-    if isfile and readfile and isfile(ConfigFile) then
-        local success, data = pcall(function() return Services.HttpService:JSONDecode(readfile(ConfigFile)) end)
-        if success and data then
-            for k, v in pairs(data) do
-                if Config[k] ~= nil then Config[k] = v end
-            end
-            -- Áp dụng ngay khi load
-            ApplyShadows(); ApplyParticles(); ApplyTextures(); ApplyLightingEffects(); ApplyTerrain(); ApplyWater(); ApplyUltraFPS()
-        end
-    end
-end
-
-local function SaveConfig()
-    if writefile then
-        pcall(function() writefile(ConfigFile, Services.HttpService:JSONEncode(Config)) end)
-    end
-end
-
--- [ KHỞI TẠO UI ]
-local Library = loadstring(game:HttpGet("https://raw.githubusercontent.com/x2zu/OPEN-SOURCE-UI-ROBLOX/refs/heads/main/X2ZU%20UI%20ROBLOX%20OPEN%20SOURCE/DummyUi-leak-by-x2zu/fetching-main/Tools/Framework.luau"))()
-
-local Window = Library:Window({
-    Title = "NovaX Optimizer",
-    Desc = "By Nhism | Fix Lag Ultimate",
-    Icon = 105059922903197,
+local Window = Fluent:CreateWindow({
+    Title = "NovaX Optimizer V2",
+    SubTitle = "Thực Chiến Fix Lag - By Nhism",
+    TabWidth = 160,
+    Size = UDim2.fromOffset(580, 460),
+    Acrylic = true,
     Theme = "Dark",
-    Config = {
-        Keybind = Enum.KeyCode.LeftControl,
-        Size = UDim2.new(0, 500, 0, 400)
-    },
-    CloseUIButton = { Enabled = true, Text = "NovaX" }
+    MinimizeKey = Enum.KeyCode.LeftControl
 })
 
+local Tabs = {
+    Home = Window:AddTab({ Title = "Home", Icon = "zap" }),
+    Settings = Window:AddTab({ Title = "Settings", Icon = "settings" }),
+    Info = Window:AddTab({ Title = "Info", Icon = "info" })
+}
+
+local Options = Fluent.Options
+
 -- ==========================================
--- TAB: HOME (CHỨC NĂNG FIX LAG)
+-- BIẾN TRẠNG THÁI CẤU HÌNH
 -- ==========================================
-local HomeTab = Window:Tab({Title = "Home", Icon = "home"}) do
-    HomeTab:Section({Title = "Cấu Hình Fix Lag Cơ Bản"})
+local Config = {
+    Shadows = false,
+    Particles = false,
+    Textures = false,
+    Lighting = false,
+    Terrain = false,
+    PlayerParts = false,
+    EngineSettings = false,
+    SoundOptimize = false
+}
 
-    HomeTab:Toggle({
-        Title = "Tắt Bóng Đổ (Disable Shadows)",
-        Desc = "Giảm tải GPU đáng kể, tăng FPS",
-        Value = Config.DisableShadows,
-        Callback = function(v)
-            Config.DisableShadows = v
-            ApplyShadows()
-        end
-    })
+-- [ HÀM XỬ LÝ TỐI ƯU THỰC TẾ ]
 
-    HomeTab:Toggle({
-        Title = "Tắt Hiệu Ứng Hạt (Disable Particles)",
-        Desc = "Ẩn khói, lửa, tia lửa gây lag",
-        Value = Config.DisableParticles,
-        Callback = function(v)
-            Config.DisableParticles = v
-            ApplyParticles()
-        end
-    })
-
-    HomeTab:Toggle({
-        Title = "Tắt Hình Ảnh/Decal (Disable Textures)",
-        Desc = "Ẩn texture trên tường, đất, nhân vật",
-        Value = Config.DisableTextures,
-        Callback = function(v)
-            Config.DisableTextures = v
-            ApplyTextures()
-        end
-    })
-
-    HomeTab:Toggle({
-        Title = "Tắt Hiệu Ứng Ánh Sáng (Disable Post-Effects)",
-        Desc = "Tắt Bloom, Blur, DOF, ColorCorrection",
-        Value = Config.DisableLightingEffects,
-        Callback = function(v)
-            Config.DisableLightingEffects = v
-            ApplyLightingEffects()
-        end
-    })
-
-    HomeTab:Section({Title = "Tối Ưu Đồ Hoạ Nâng Cao"})
-
-    HomeTab:Toggle({
-        Title = "Tối Ưu Địa Hình & Nước (Terrain Optimize)",
-        Desc = "Xoá cỏ, giảm sóng nước, tăng FPS mạnh",
-        Value = Config.OptimizeTerrain,
-        Callback = function(v)
-            Config.OptimizeTerrain = v
-            ApplyTerrain()
-        end
-    })
-
-    HomeTab:Toggle({
-        Title = "Nước Trong Suốt (Clear Water)",
-        Desc = "Giảm render nước, nhìn xuyên thấu",
-        Value = Config.WaterTransparency,
-        Callback = function(v)
-            Config.WaterTransparency = v
-            ApplyWater()
-        end
-    })
-
-    HomeTab:Toggle({
-        Title = "ULTRA FPS BOOST",
-        Desc = "Ép chất lượng đồ hoạ xuống mức thấp nhất (Level 01)",
-        Value = Config.UltraFPS,
-        Callback = function(v)
-            Config.UltraFPS = v
-            ApplyUltraFPS()
-            Window:Notify({Title = "Hệ Thống", Desc = v and "Đã bật Ultra FPS!" or "Đã tắt Ultra FPS!", Time = 3})
-        end
-    })
-
-    HomeTab:Button({
-        Title = "Kích Hoạt Toàn Bộ Fix Lag",
-        Desc = "Bật tất cả tính năng tối ưu cùng lúc",
-        Callback = function()
-            Config.DisableShadows = true; ApplyShadows()
-            Config.DisableParticles = true; ApplyParticles()
-            Config.DisableTextures = true; ApplyTextures()
-            Config.DisableLightingEffects = true; ApplyLightingEffects()
-            Config.OptimizeTerrain = true; ApplyTerrain()
-            Config.WaterTransparency = true; ApplyWater()
-            Config.UltraFPS = true; ApplyUltraFPS()
-            
-            -- Cập nhật UI (Yêu cầu người dùng bật lại toggle thủ công nếu UI không tự update)
-            Window:Notify({Title = "Tối Ưu Hoá", Desc = "Đã áp dụng toàn bộ cấu hình Fix Lag.", Time = 4})
-        end
-    })
+-- 1. Tắt Bóng Đổ (Shadows) - Giảm tải GPU
+local function ApplyShadows()
+    Services.Lighting.GlobalShadows = not Config.Shadows
 end
 
--- ==========================================
--- TAB: SETTING (LƯU / TẢI CONFIG)
--- ==========================================
-local SettingTab = Window:Tab({Title = "Settings", Icon = "wrench"}) do
-    SettingTab:Section({Title = "Quản Lý Cấu Hình"})
-
-    SettingTab:Button({
-        Title = "Lưu Cấu Hình (Save Config)",
-        Desc = "Lưu trạng thái hiện tại vào file JSON",
-        Callback = function()
-            SaveConfig()
-            Window:Notify({Title = "Config", Desc = "Đã lưu cấu hình thành công!", Time = 3})
+-- 2. Dọn Dẹp Hạt (Particles) - Giảm tải CPU/GPU (Chạy liên tục)
+local function ApplyParticles(inst)
+    if inst:IsA("ParticleEmitter") or inst:IsA("Smoke") or inst:IsA("Fire") or inst:IsA("Sparkles") or inst:IsA("Explosion") then
+        if Config.Particles then
+            inst.Enabled = false
         end
-    })
-
-    SettingTab:Button({
-        Title = "Tải Cấu Hình (Load Config)",
-        Desc = "Tải lại cấu hình đã lưu trước đó",
-        Callback = function()
-            LoadConfig()
-            Window:Notify({Title = "Config", Desc = "Đã tải cấu hình!", Time = 3})
-        end
-    })
+    end
 end
 
--- ==========================================
--- TAB: INFO (THÔNG TIN)
--- ==========================================
-local InfoTab = Window:Tab({Title = "Info", Icon = "info"}) do
-    InfoTab:Section({Title = "Thông Tin Script"})
-    
-    InfoTab:Textbox({
-        Title = "Phiên Bản",
-        Desc = "NovaX Optimizer V1.0.0",
-        Placeholder = "1.0.0",
-        Value = "1.0.0",
-        ClearTextOnFocus = false,
-        Callback = function() end
-    })
-    
-    InfoTab:Textbox({
-        Title = "Tác Giả",
-        Desc = "Nhism",
-        Placeholder = "Nhism",
-        Value = "Nhism",
-        ClearTextOnFocus = false,
-        Callback = function() end
-    })
-    
-    InfoTab:Section({Title = "Liên Kết"})
-    
-    InfoTab:Button({
-        Title = "Copy Link Discord",
-        Desc = "discord.gg/nhism",
-        Callback = function()
-            if setclipboard then setclipboard("https://discord.gg/nhism") end
-            Window:Notify({Title = "Copied", Desc = "Đã copy link Discord.", Time = 3})
-        end
-    })
-    
-    InfoTab:Button({
-        Title = "Copy Link Website",
-        Desc = "nhism.com",
-        Callback = function()
-            if setclipboard then setclipboard("https://nhism.com") end
-            Window:Notify({Title = "Copied", Desc = "Đã copy link Website.", Time = 3})
-        end
-    })
+-- 3. Ẩn Hình Ảnh (Textures)
+local function ApplyTextures(inst)
+    if inst:IsA("Decal") or inst:IsA("Texture") then
+        inst.Transparency = Config.Textures and 1 or 0
+    end
 end
 
--- Tải cấu hình tự động khi khởi động
-LoadConfig()
-Window:Notify({
-    Title = "NovaX Optimizer",
-    Desc = "Đã tải thành công. Nhấn LeftControl để mở/đóng UI.",
-    Time = 5
+-- 4. Tắt Hiệu Ứng Ánh Sáng (Post-Processing)
+local function ApplyLighting()
+    for _, v in pairs(Services.Lighting:GetChildren()) do
+        if v:IsA("PostEffect") or v:IsA("Atmosphere") or v:IsA("Sky") then
+            v.Enabled = not Config.Lighting
+        end
+    end
+    if Config.Lighting then
+        Services.Lighting.FogEnd = 100000
+        Services.Lighting.FogStart = 100000
+    end
+end
+
+-- 5. Tối Ưu Địa Hình (Terrain) & Vật Thể Xa
+local function ApplyTerrain()
+    Terrain.WaterWaveSize = Config.Terrain and 0 or 0.15
+    Terrain.WaterWaveSpeed = Config.Terrain and 0 or 10
+    Terrain.WaterReflectance = Config.Terrain and 0 or 0.1
+    Terrain.WaterTransparency = Config.Terrain and 1 or 0.3
+end
+
+-- 6. Ẩn Phụ Kiện Người Chơi Khác - Giảm Tải CPU Đáng Kể
+local function ApplyPlayerParts()
+    for _, plr in pairs(Services.Players:GetPlayers()) do
+        if plr ~= LocalPlayer and plr.Character then
+            for _, v in pairs(plr.Character:GetDescendants()) do
+                if v:IsA("Accessory") or v:IsA("Shirt") or v:IsA("Pants") or v:IsA("CharacterMesh") then
+                    if v:IsA("BasePart") or v:IsA("Model") then
+                        v.Transparency = Config.PlayerParts and 1 or 0
+                    elseif v:IsA("Shirt") or v:IsA("Pants") then
+                        v.Transparency = Config.PlayerParts and 1 or 0
+                    end
+                end
+            end
+        end
+    end
+end
+
+-- 7. Can Thiệp Engine & Network (Settings)
+local function ApplyEngineSettings()
+    pcall(function()
+        if Config.EngineSettings then
+            settings().Rendering.QualityLevel = Enum.QualityLevel.Level01
+            settings().Network.IncomingReplicationLag = 10 -- Giảm lag mạng
+            settings().Physics.PhysicsEnvironmentalThrottle = Enum.EnviromentalPhysicsThrottle.Disabled
+        else
+            settings().Rendering.QualityLevel = Enum.QualityLevel.Automatic
+            settings().Network.IncomingReplicationLag = 0
+        end
+    end)
+end
+
+-- 8. Tối Ưu Âm Thanh
+local function ApplySoundOptimize()
+    Services.SoundService.AmbientReverb = Config.SoundOptimize and Enum.ReverbType.NoReverb or Enum.ReverbType.Generic
+    for _, v in pairs(Services.Workspace:GetDescendants()) do
+        if v:IsA("Sound") and v.Playing then
+            if Config.SoundOptimize then
+                v.Playing = false
+            end
+        end
+    end
+end
+
+
+-- [ SỰ KIỆN LIÊN TỤC - CỰC KỲ QUAN TRỌNG ĐỂ CHỐNG LAG DYNAMIC ]
+Services.Workspace.DescendantAdded:Connect(function(inst)
+    ApplyParticles(inst)
+    ApplyTextures(inst)
+end)
+
+Services.Players.PlayerAdded:Connect(function(plr)
+    plr.CharacterAdded:Connect(function()
+        task.wait(1)
+        ApplyPlayerParts()
+    end)
+end)
+
+-- ==========================================
+-- TAB: HOME (CHỨC NĂNG)
+-- ==========================================
+Tabs.Home:AddSection("Tối Ưu Hoá Đồ Hoạ (Giảm Tải GPU)")
+Tabs.Home:AddToggle("T_Shadows", { Title = "Tắt Bóng Đổ (Global Shadows)", Description = "Tắt đổ bóng của môi trường và nhân vật.", Default = false })
+Options.T_Shadows:OnChanged(function(Value)
+    Config.Shadows = Value
+    ApplyShadows()
+end)
+
+Tabs.Home:AddToggle("T_Particles", { Title = "Chặn Hiệu Ứng Hạt", Description = "Vô hiệu hoá khói, lửa, kỹ năng, bụi.", Default = false })
+Options.T_Particles:OnChanged(function(Value)
+    Config.Particles = Value
+    for _, v in ipairs(Services.Workspace:GetDescendants()) do ApplyParticles(v) end
+end)
+
+Tabs.Home:AddToggle("T_Textures", { Title = "Xoá Hình Ảnh (Decals/Textures)", Description = "Ẩn toàn bộ hình xăm, poster, texture bề mặt.", Default = false })
+Options.T_Textures:OnChanged(function(Value)
+    Config.Textures = Value
+    for _, v in ipairs(Services.Workspace:GetDescendants()) do ApplyTextures(v) end
+end)
+
+Tabs.Home:AddToggle("T_Lighting", { Title = "Tắt Hiệu Ứng Ánh Sáng", Description = "Tắt Bloom, Blur, Sương mù, Bầu trời.", Default = false })
+Options.T_Lighting:OnChanged(function(Value)
+    Config.Lighting = Value
+    ApplyLighting()
+end)
+
+
+Tabs.Home:AddSection("Tối Ưu Hoá Môi Trường & Hệ Thống")
+Tabs.Home:AddToggle("T_Terrain", { Title = "Tối Ưu Địa Hình (Terrain)", Description = "Làm phẳng nước, tắt gợn sóng.", Default = false })
+Options.T_Terrain:OnChanged(function(Value)
+    Config.Terrain = Value
+    ApplyTerrain()
+end)
+
+Tabs.Home:AddToggle("T_PlayerParts", { Title = "Ẩn Phụ Kiện Người Chơi Khác", Description = "Cởi đồ, xoá tóc của người khác để giảm lag.", Default = false })
+Options.T_PlayerParts:OnChanged(function(Value)
+    Config.PlayerParts = Value
+    ApplyPlayerParts()
+end)
+
+Tabs.Home:AddToggle("T_Sound", { Title = "Tắt Âm Thanh Rác", Description = "Tắt âm thanh môi trường.", Default = false })
+Options.T_Sound:OnChanged(function(Value)
+    Config.SoundOptimize = Value
+    ApplySoundOptimize()
+end)
+
+Tabs.Home:AddSection("ULTRA PERFORMANCE")
+Tabs.Home:AddToggle("T_Engine", { Title = "Bypass Engine (Ultra FPS)", Description = "Ép Engine Roblox chạy ở mức thấp nhất, giảm Lag mạng.", Default = false })
+Options.T_Engine:OnChanged(function(Value)
+    Config.EngineSettings = Value
+    ApplyEngineSettings()
+end)
+
+Tabs.Home:AddButton({ Title = "KÍCH HOẠT TOÀN BỘ (ULTRA FIX LAG)", Description = "Bật tất cả các chức năng tối ưu cùng lúc", Callback = function()
+    -- Kích hoạt đồng loạt
+    Config.Shadows = true; Options.T_Shadows:SetValue(true)
+    Config.Particles = true; Options.T_Particles:SetValue(true)
+    Config.Textures = true; Options.T_Textures:SetValue(true)
+    Config.Lighting = true; Options.T_Lighting:SetValue(true)
+    Config.Terrain = true; Options.T_Terrain:SetValue(true)
+    Config.PlayerParts = true; Options.T_PlayerParts:SetValue(true)
+    Config.SoundOptimize = true; Options.T_Sound:SetValue(true)
+    Config.EngineSettings = true; Options.T_Engine:SetValue(true)
+    
+    -- Force apply
+    ApplyShadows(); ApplyLighting(); ApplyTerrain(); ApplyPlayerParts(); ApplySoundOptimize(); ApplyEngineSettings()
+    for _, v in ipairs(Services.Workspace:GetDescendants()) do ApplyParticles(v); ApplyTextures(v) end
+    
+    Fluent:Notify({ Title = "Hệ Thống", Content = "Đã kích hoạt toàn bộ cấu hình Fix Lag!", Duration = 5 })
+end })
+
+-- ==========================================
+-- TAB: SETTINGS (LƯU CONFIG)
+-- ==========================================
+-- Sử dụng SaveManager của Fluent UI (Tự động lưu trạng thái Toggle)
+SaveManager:SetLibrary(Fluent)
+InterfaceManager:SetLibrary(Fluent)
+
+SaveManager:IgnoreThemeSettings()
+SaveManager:SetIgnoreIndexes({})
+InterfaceManager:SetFolder("NovaXOptimizer")
+SaveManager:SetFolder("NovaXOptimizer/Configs")
+
+InterfaceManager:BuildInterfaceSection(Tabs.Settings)
+SaveManager:BuildConfigSection(Tabs.Settings)
+
+-- ==========================================
+-- TAB: INFO
+-- ==========================================
+Tabs.Info:AddParagraph({
+    Title = "Thông Tin Script",
+    Content = "NovaX Optimizer V2\nPhiên bản: Thực Chiến\nTác giả: Nhism\n\nScript hoạt động bằng cách can thiệp trực tiếp vào Engine Render, Networking và Quản lý Bộ nhớ của Roblox để tăng FPS tối đa."
+})
+
+Tabs.Info:AddButton({
+    Title = "Copy Link Discord",
+    Description = "discord.gg/nhism",
+    Callback = function()
+        if setclipboard then setclipboard("https://discord.gg/nhism") end
+        Fluent:Notify({ Title = "Copied", Content = "Đã copy link Discord", Duration = 3 })
+    end
+})
+
+Tabs.Info:AddButton({
+    Title = "Copy Link Website",
+    Description = "nhism.com",
+    Callback = function()
+        if setclipboard then setclipboard("https://nhism.com") end
+        Fluent:Notify({ Title = "Copied", Content = "Đã copy link Website", Duration = 3 })
+    end
+})
+
+-- Khởi động UI
+Window:SelectTab(1)
+Fluent:Notify({
+    Title = "NovaX Optimizer V2",
+    Content = "Đã tải thành công. Nhấn LeftControl để ẩn/hiện.",
+    Duration = 6
 })
