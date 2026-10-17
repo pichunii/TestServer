@@ -1,4 +1,22 @@
--- Kiểm tra môi trường Executor
+--[[
+    HỆ THỐNG KEY UI MACOS LIQUID GLASS (V7)
+    Tác giả: Nhism
+    
+    [ CẤU HÌNH HỆ THỐNG TỪ BÊN NGOÀI ]
+    getgenv().Key = "NHISM-PREMIUM-999"
+    getgenv().id = "153601438942"
+    getgenv().Script_Mode = "Main" -- Các chế độ: "Main", "Kaitun", "Aimbot", "Fixlag"
+]]
+
+-- [ CHỐNG SPAM EXECUTOR (QUY TẮC 6) ]
+if not getgenv().NhismLoadCount then getgenv().NhismLoadCount = 0 end
+getgenv().NhismLoadCount = getgenv().NhismLoadCount + 1
+
+if getgenv().NhismLoadCount >= 10 then
+    game:GetService("Players").LocalPlayer:Kick("[Nhism Hub] Anti-Cheat: Detected Executor Spam (>= 10 times).")
+    return
+end
+
 if not game:IsLoaded() then game.Loaded:Wait() end
 
 local Services = {
@@ -13,8 +31,8 @@ local Services = {
 
 local Player = Services.Players.LocalPlayer
 local IsMobile = Services.UserInputService.TouchEnabled and not Services.UserInputService.KeyboardEnabled
-local ScreenGuiName = "NhismKeySystem_V5"
-local JsonFileName = "Nhism_Config_V5.json"
+local ScreenGuiName = "NhismKeySystem_V7"
+local JsonFileName = "Nhism_Config_V7.json"
 
 -- [ CẤU HÌNH HỆ THỐNG TỪ BÊN NGOÀI ]
 local Config = {
@@ -48,13 +66,17 @@ if not CurrentGameName then
     return
 end
 
--- [ HÀM CHẠY SCRIPT CHÍNH ]
+-- [ HÀM CHẠY SCRIPT CHÍNH & TÍCH HỢP SCRIPT MODE ]
 local function ExecuteGameScript(isPremium)
-    -- THAY LINK SCRIPT RAW CỦA BẠN VÀO ĐÂY
-    local MainScriptURL = "https://raw.githubusercontent.com/yourname/yourrepo/main/main.lua"
-    local KaitunScriptURL = "https://raw.githubusercontent.com/yourname/yourrepo/main/kaitun.lua"
+    -- THAY LINK SCRIPT RAW CỦA BẠN VÀO ĐÂY THEO TỪNG MODE
+    local ScriptURLs = {
+        Main = "https://raw.githubusercontent.com/yourname/yourrepo/main/main.lua",
+        Kaitun = "https://raw.githubusercontent.com/yourname/yourrepo/main/kaitun.lua",
+        Aimbot = "https://raw.githubusercontent.com/yourname/yourrepo/main/aimbot.lua",
+        Fixlag = "https://raw.githubusercontent.com/yourname/yourrepo/main/fixlag.lua"
+    }
     
-    local TargetURL = (Config.Script_Mode == "Kaitun") and KaitunScriptURL or MainScriptURL
+    local TargetURL = ScriptURLs[Config.Script_Mode] or ScriptURLs["Main"]
 
     if TargetURL ~= "" and TargetURL:find("http") then
         local success, err = pcall(function()
@@ -64,11 +86,11 @@ local function ExecuteGameScript(isPremium)
             warn("[Nhism Hub] Lỗi tải script: " .. tostring(err))
         end
     else
-        print("[Hệ Thống] Chưa cài đặt Link Script trong ExecuteGameScript.")
+        print("[Hệ Thống] Chưa cài đặt Link Script cho Mode: " .. Config.Script_Mode)
     end
 end
 
--- [ KIỂM TRA CONFIG TỰ ĐỘNG (QUY TẮC 6) ]
+-- [ KIỂM TRA CONFIG TỰ ĐỘNG ]
 if Config.Key ~= "" then
     local isValid = false
     for _, k in ipairs(FreeKeys) do if Config.Key == k then isValid = true break end end
@@ -77,7 +99,7 @@ if Config.Key ~= "" then
     if isValid then
         if AllowedIDs[Config.ID] or Config.ID == "Unknown_ID" then
             ExecuteGameScript(Config.Key:find("PREM") ~= nil)
-            return -- Chạy thẳng script, không hiện UI
+            return
         else
             Player:Kick("[Nhism Hub] Config ID Discord không hợp lệ.")
             return
@@ -88,7 +110,7 @@ if Config.Key ~= "" then
     end
 end
 
--- [ HÀM HỖ TRỢ FILE JSON AN TOÀN (CHỐNG CRASH EXECUTOR) ]
+-- [ HÀM HỖ TRỢ FILE JSON ]
 local function SafeReadFile(fileName)
     if isfile and readfile then
         local success, result = pcall(function()
@@ -120,31 +142,45 @@ if Services.CoreGui:FindFirstChild(ScreenGuiName) then
     Services.CoreGui:FindFirstChild(ScreenGuiName):Destroy()
 end
 
--- [ KHỞI TẠO UI - MACOS LIGHT THEME ]
+-- [ KHỞI TẠO UI - LIQUID GLASS LIGHT ]
 local ScreenGui = Instance.new("ScreenGui")
 ScreenGui.Name = ScreenGuiName
 ScreenGui.ResetOnSpawn = false
 ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 ScreenGui.Parent = Services.CoreGui
 
--- Main Window
 local MainFrame = Instance.new("Frame")
 MainFrame.Name = "MainFrame"
-MainFrame.Size = UDim2.new(0, 600, 0, 400)
-MainFrame.AnchorPoint = Vector2.new(0.5, 0.5) -- Neo giữa màn hình
+MainFrame.Size = UDim2.new(0, 600, 0, 420)
+MainFrame.AnchorPoint = Vector2.new(0.5, 0.5)
 MainFrame.Position = UDim2.new(0.5, 0, 0.5, 0)
-MainFrame.BackgroundColor3 = Color3.fromRGB(250, 250, 250)
+MainFrame.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+MainFrame.BackgroundTransparency = 0.15
 MainFrame.BorderSizePixel = 0
 MainFrame.Parent = ScreenGui
 
+-- Hiệu ứng Kính Lỏng (Liquid Glass)
 local UICorner = Instance.new("UICorner")
-UICorner.CornerRadius = UDim.new(0, 10)
+UICorner.CornerRadius = UDim.new(0, 16)
 UICorner.Parent = MainFrame
 
 local UIStroke = Instance.new("UIStroke")
-UIStroke.Color = Color3.fromRGB(200, 200, 200)
-UIStroke.Thickness = 1
+UIStroke.Color = Color3.fromRGB(255, 255, 255)
+UIStroke.Transparency = 0.5
+UIStroke.Thickness = 1.5
 UIStroke.Parent = MainFrame
+
+local GlassGradient = Instance.new("UIGradient")
+GlassGradient.Color = ColorSequence.new{
+    ColorSequenceKeypoint.new(0, Color3.fromRGB(255, 255, 255)),
+    ColorSequenceKeypoint.new(1, Color3.fromRGB(220, 230, 255))
+}
+GlassGradient.Transparency = NumberSequence.new{
+    NumberSequenceKeypoint.new(0, 0.8),
+    NumberSequenceKeypoint.new(1, 0.95)
+}
+GlassGradient.Rotation = 45
+GlassGradient.Parent = MainFrame
 
 local UIScale = Instance.new("UIScale")
 UIScale.Parent = MainFrame
@@ -152,7 +188,7 @@ UIScale.Scale = IsMobile and 0.75 or 1
 
 -- Title Bar
 local TitleBar = Instance.new("Frame")
-TitleBar.Size = UDim2.new(1, 0, 0, 40)
+TitleBar.Size = UDim2.new(1, 0, 0, 45)
 TitleBar.BackgroundTransparency = 1
 TitleBar.Parent = MainFrame
 
@@ -167,18 +203,15 @@ for i, color in ipairs({Color3.fromRGB(255, 95, 86), Color3.fromRGB(255, 189, 46
     c.Parent = dot
 end
 
--- [ LOGIC KÉO THẢ FIX LỖI HOÀN TOÀN ]
+-- [ LOGIC KÉO THẢ ]
 local dragging, dragInput, dragStart, startPos
 TitleBar.InputBegan:Connect(function(input)
     if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
         dragging = true
         dragStart = input.Position
         startPos = MainFrame.Position
-        
         input.Changed:Connect(function()
-            if input.UserInputState == Enum.UserInputState.End then
-                dragging = false
-            end
+            if input.UserInputState == Enum.UserInputState.End then dragging = false end
         end)
     end
 end)
@@ -196,15 +229,16 @@ end)
 
 -- Sidebar
 local Sidebar = Instance.new("Frame")
-Sidebar.Size = UDim2.new(0, 180, 1, -50)
-Sidebar.Position = UDim2.new(0, 10, 0, 40)
-Sidebar.BackgroundColor3 = Color3.fromRGB(240, 240, 240)
+Sidebar.Size = UDim2.new(0, 180, 1, -60)
+Sidebar.Position = UDim2.new(0, 10, 0, 45)
+Sidebar.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+Sidebar.BackgroundTransparency = 0.4
 Sidebar.Parent = MainFrame
 local SidebarCorner = Instance.new("UICorner")
-SidebarCorner.CornerRadius = UDim.new(0, 8)
+SidebarCorner.CornerRadius = UDim.new(0, 12)
 SidebarCorner.Parent = Sidebar
 
--- Profile (Dưới bên trái)
+-- Profile
 local ProfileFrame = Instance.new("Frame")
 ProfileFrame.Size = UDim2.new(1, -20, 0, 50)
 ProfileFrame.AnchorPoint = Vector2.new(0, 1)
@@ -248,7 +282,7 @@ IdLabel.Parent = ProfileFrame
 local function CreateTabButton(name, text, yPos)
     local btn = Instance.new("TextButton")
     btn.Name = name
-    btn.Size = UDim2.new(1, -20, 0, 32)
+    btn.Size = UDim2.new(1, -20, 0, 35)
     btn.Position = UDim2.new(0, 10, 0, yPos)
     btn.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
     btn.BackgroundTransparency = 1
@@ -259,18 +293,18 @@ local function CreateTabButton(name, text, yPos)
     btn.TextSize = 13
     btn.Parent = Sidebar
     local c = Instance.new("UICorner")
-    c.CornerRadius = UDim.new(0, 6)
+    c.CornerRadius = UDim.new(0, 8)
     c.Parent = btn
     return btn
 end
 
 local KeyTabBtn = CreateTabButton("KeyTabBtn", "[*] Key System", 10)
-local InfoTabBtn = CreateTabButton("InfoTabBtn", "[i] Information", 50)
+local InfoTabBtn = CreateTabButton("InfoTabBtn", "[i] Information", 55)
 
 -- Content Area
 local ContentContainer = Instance.new("Frame")
-ContentContainer.Size = UDim2.new(1, -200, 1, -50)
-ContentContainer.Position = UDim2.new(0, 190, 0, 40)
+ContentContainer.Size = UDim2.new(1, -200, 1, -60)
+ContentContainer.Position = UDim2.new(0, 190, 0, 45)
 ContentContainer.BackgroundTransparency = 1
 ContentContainer.Parent = MainFrame
 
@@ -287,7 +321,7 @@ Title.BackgroundTransparency = 1
 Title.Text = "Authentication"
 Title.TextColor3 = Color3.fromRGB(255, 255, 255)
 Title.Font = Enum.Font.GothamBlack
-Title.TextSize = 22
+Title.TextSize = 24
 Title.TextXAlignment = Enum.TextXAlignment.Left
 Title.Parent = KeyPage
 
@@ -319,20 +353,22 @@ Subtitle.Parent = KeyPage
 
 -- Input Frame
 local InputFrame = Instance.new("Frame")
-InputFrame.Size = UDim2.new(1, -20, 0, 40)
-InputFrame.Position = UDim2.new(0, 0, 0, 70)
+InputFrame.Size = UDim2.new(1, -20, 0, 42)
+InputFrame.Position = UDim2.new(0, 0, 0, 60)
 InputFrame.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+InputFrame.BackgroundTransparency = 0.3
 InputFrame.Parent = KeyPage
 local InCorner = Instance.new("UICorner")
-InCorner.CornerRadius = UDim.new(0, 8)
+InCorner.CornerRadius = UDim.new(0, 10)
 InCorner.Parent = InputFrame
 local InStroke = Instance.new("UIStroke")
-InStroke.Color = Color3.fromRGB(200, 200, 200)
+InStroke.Color = Color3.fromRGB(255, 255, 255)
+InStroke.Transparency = 0.4
 InStroke.Parent = InputFrame
 
 local KeyInput = Instance.new("TextBox")
 KeyInput.Size = UDim2.new(1, -90, 1, 0)
-KeyInput.Position = UDim2.new(0, 10, 0, 0)
+KeyInput.Position = UDim2.new(0, 12, 0, 0)
 KeyInput.BackgroundTransparency = 1
 KeyInput.Text = SavedKey
 KeyInput.PlaceholderText = "Enter Key Here..."
@@ -346,14 +382,15 @@ KeyInput.Parent = InputFrame
 local PasteBtn = Instance.new("TextButton")
 PasteBtn.Size = UDim2.new(0, 70, 1, -10)
 PasteBtn.Position = UDim2.new(1, -75, 0, 5)
-PasteBtn.BackgroundColor3 = Color3.fromRGB(240, 240, 240)
+PasteBtn.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+PasteBtn.BackgroundTransparency = 0.5
 PasteBtn.Text = "Paste"
 PasteBtn.TextColor3 = Color3.fromRGB(0, 0, 0)
 PasteBtn.Font = Enum.Font.GothamBold
 PasteBtn.TextSize = 12
 PasteBtn.Parent = InputFrame
 local PasteCorner = Instance.new("UICorner")
-PasteCorner.CornerRadius = UDim.new(0, 6)
+PasteCorner.CornerRadius = UDim.new(0, 8)
 PasteCorner.Parent = PasteBtn
 
 PasteBtn.MouseButton1Click:Connect(function()
@@ -363,32 +400,31 @@ PasteBtn.MouseButton1Click:Connect(function()
     end
 end)
 
--- Buttons
-local GetKeyBtn = Instance.new("TextButton")
-GetKeyBtn.Size = UDim2.new(0.5, -5, 0, 40)
-GetKeyBtn.Position = UDim2.new(0, 0, 0, 125)
-GetKeyBtn.BackgroundColor3 = Color3.fromRGB(0, 122, 255)
-GetKeyBtn.Text = "Get Key"
-GetKeyBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-GetKeyBtn.Font = Enum.Font.GothamBold
-GetKeyBtn.TextSize = 14
-GetKeyBtn.Parent = KeyPage
-local GetCorner = Instance.new("UICorner")
-GetCorner.CornerRadius = UDim.new(0, 8)
-GetCorner.Parent = GetKeyBtn
+-- Button Grid (4 Nút)
+local function CreateButton(text, pos, color, textColor)
+    local btn = Instance.new("TextButton")
+    btn.Size = UDim2.new(0.5, -5, 0, 42)
+    btn.Position = pos
+    btn.BackgroundColor3 = color
+    btn.Text = text
+    btn.TextColor3 = textColor
+    btn.Font = Enum.Font.GothamBold
+    btn.TextSize = 14
+    btn.Parent = KeyPage
+    local c = Instance.new("UICorner")
+    c.CornerRadius = UDim.new(0, 10)
+    c.Parent = btn
+    local s = Instance.new("UIStroke")
+    s.Color = Color3.fromRGB(255, 255, 255)
+    s.Transparency = 0.5
+    s.Parent = btn
+    return btn
+end
 
-local SubmitBtn = Instance.new("TextButton")
-SubmitBtn.Size = UDim2.new(0.5, -5, 0, 40)
-SubmitBtn.Position = UDim2.new(0.5, 5, 0, 125)
-SubmitBtn.BackgroundColor3 = Color3.fromRGB(52, 199, 89)
-SubmitBtn.Text = "Submit"
-SubmitBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-SubmitBtn.Font = Enum.Font.GothamBold
-SubmitBtn.TextSize = 14
-SubmitBtn.Parent = KeyPage
-local SubCorner = Instance.new("UICorner")
-SubCorner.CornerRadius = UDim.new(0, 8)
-SubCorner.Parent = SubmitBtn
+local GetKeyBtn = CreateButton("Get Key", UDim2.new(0, 0, 0, 115), Color3.fromRGB(0, 122, 255), Color3.fromRGB(255, 255, 255))
+local SubmitBtn = CreateButton("Submit", UDim2.new(0.5, 5, 0, 115), Color3.fromRGB(52, 199, 89), Color3.fromRGB(255, 255, 255))
+local DiscordBtn = CreateButton("Discord", UDim2.new(0, 0, 0, 165), Color3.fromRGB(88, 101, 242), Color3.fromRGB(255, 255, 255))
+local WebsiteBtn = CreateButton("Website", UDim2.new(0.5, 5, 0, 165), Color3.fromRGB(40, 40, 40), Color3.fromRGB(255, 255, 255))
 
 -- Info Page
 local InfoPage = Instance.new("Frame")
@@ -415,10 +451,9 @@ InfTxt.Text = string.format([[
     Time: %s
     Mode: %s
     Game: %s
-    Version: 5.0.0
+    Version: 7.0.0
     
     Developer: Nhism
-    Discord: discord.gg/nhism
 ]], os.date("%H:%M:%S - %d/%m/%Y"), Config.Script_Mode, CurrentGameName)
 InfTxt.TextColor3 = Color3.fromRGB(50, 50, 50)
 InfTxt.Font = Enum.Font.Gotham
@@ -427,69 +462,89 @@ InfTxt.TextXAlignment = Enum.TextXAlignment.Left
 InfTxt.TextYAlignment = Enum.TextYAlignment.Top
 InfTxt.Parent = InfoPage
 
--- Tab Switching
+-- Tab Switching (Animation Mượt)
 local function SwitchTab(showPage, hidePage, activeBtn, inactiveBtn)
     hidePage.Visible = false
     showPage.Visible = true
-    Services.TweenService:Create(activeBtn, TweenInfo.new(0.2), {BackgroundTransparency = 0.8, BackgroundColor3 = Color3.fromRGB(200, 200, 200)}):Play()
-    Services.TweenService:Create(inactiveBtn, TweenInfo.new(0.2), {BackgroundTransparency = 1, BackgroundColor3 = Color3.fromRGB(255, 255, 255)}):Play()
+    
+    showPage.Position = UDim2.new(0, 15, 0, 0)
+    Services.TweenService:Create(showPage, TweenInfo.new(0.3, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), {Position = UDim2.new(0, 0, 0, 0)}):Play()
+    
+    Services.TweenService:Create(activeBtn, TweenInfo.new(0.2), {BackgroundTransparency = 0.6, TextColor3 = Color3.fromRGB(0, 0, 0)}):Play()
+    Services.TweenService:Create(inactiveBtn, TweenInfo.new(0.2), {BackgroundTransparency = 1, TextColor3 = Color3.fromRGB(50, 50, 50)}):Play()
 end
 
 KeyTabBtn.MouseButton1Click:Connect(function() SwitchTab(KeyPage, InfoPage, KeyTabBtn, InfoTabBtn) end)
 InfoTabBtn.MouseButton1Click:Connect(function() SwitchTab(InfoPage, KeyPage, InfoTabBtn, KeyTabBtn) end)
 
--- Notification System
+-- [ NOTIFICATION SYSTEM - IOS 27 APPLE STYLE ]
 local function ShowNotification(title, text, isSuccess)
     local Notif = Instance.new("Frame")
-    Notif.Size = UDim2.new(0, 300, 0, 60)
+    Notif.Size = UDim2.new(0, 300, 0, 65)
     Notif.AnchorPoint = Vector2.new(0.5, 0)
-    Notif.Position = UDim2.new(0.5, 0, 0, -100)
+    Notif.Position = UDim2.new(0.5, 0, 0, -120)
     Notif.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+    Notif.BackgroundTransparency = 0.1
     Notif.Parent = ScreenGui
+    
     local c = Instance.new("UICorner")
-    c.CornerRadius = UDim.new(0, 10)
+    c.CornerRadius = UDim.new(0, 32) -- Pill Shape
     c.Parent = Notif
+    
     local s = Instance.new("UIStroke")
-    s.Color = isSuccess and Color3.fromRGB(52, 199, 89) or Color3.fromRGB(255, 59, 48)
+    s.Color = Color3.fromRGB(255, 255, 255)
+    s.Transparency = 0.3
+    s.Thickness = 1
     s.Parent = Notif
     
     local NTitle = Instance.new("TextLabel")
-    NTitle.Size = UDim2.new(1, -20, 0, 25)
-    NTitle.Position = UDim2.new(0, 10, 0, 5)
+    NTitle.Size = UDim2.new(1, -50, 0, 25)
+    NTitle.Position = UDim2.new(0, 20, 0, 10)
     NTitle.BackgroundTransparency = 1
     NTitle.Text = title
-    NTitle.TextColor3 = s.Color
+    NTitle.TextColor3 = isSuccess and Color3.fromRGB(52, 199, 89) or Color3.fromRGB(255, 59, 48)
     NTitle.Font = Enum.Font.GothamBold
     NTitle.TextSize = 14
     NTitle.TextXAlignment = Enum.TextXAlignment.Left
     NTitle.Parent = Notif
     
     local NText = Instance.new("TextLabel")
-    NText.Size = UDim2.new(1, -20, 0, 25)
-    NText.Position = UDim2.new(0, 10, 0, 25)
+    NText.Size = UDim2.new(1, -50, 0, 25)
+    NText.Position = UDim2.new(0, 20, 0, 30)
     NText.BackgroundTransparency = 1
     NText.Text = text
     NText.TextColor3 = Color3.fromRGB(50, 50, 50)
-    NText.Font = Enum.Font.Gotham
+    NText.Font = Enum.Font.GothamMedium
     NText.TextSize = 12
     NText.TextXAlignment = Enum.TextXAlignment.Left
     NText.Parent = Notif
 
-    Services.TweenService:Create(Notif, TweenInfo.new(0.4, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), {Position = UDim2.new(0.5, 0, 0, 20)}):Play()
+    -- iOS Spring Animation
+    local targetPos = UDim2.new(0.5, 0, 0, 20)
+    Services.TweenService:Create(Notif, TweenInfo.new(0.6, Enum.EasingStyle.Elastic, Enum.EasingDirection.Out), {Position = targetPos}):Play()
     
     task.delay(3, function()
-        local out = Services.TweenService:Create(Notif, TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {Position = UDim2.new(0.5, 0, 0, -100)})
+        local out = Services.TweenService:Create(Notif, TweenInfo.new(0.4, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {Position = UDim2.new(0.5, 0, 0, -120)})
         out:Play()
         out.Completed:Wait()
         Notif:Destroy()
     end)
 end
 
+-- Button Clicks
 GetKeyBtn.MouseButton1Click:Connect(function()
-    if setclipboard then 
-        pcall(function() setclipboard("https://link-to-your-key-system.com") end)
-    end
-    ShowNotification("Copied", "Key link copied to clipboard.", true)
+    if setclipboard then pcall(function() setclipboard("https://link-to-your-key-system.com") end) end
+    ShowNotification("Copied", "Key link copied.", true)
+end)
+
+DiscordBtn.MouseButton1Click:Connect(function()
+    if setclipboard then pcall(function() setclipboard("https://discord.gg/nhism") end) end
+    ShowNotification("Copied", "Discord link copied.", true)
+end)
+
+WebsiteBtn.MouseButton1Click:Connect(function()
+    if setclipboard then pcall(function() setclipboard("https://nhism.com") end) end
+    ShowNotification("Copied", "Website link copied.", true)
 end)
 
 -- [ LOGIC SUBMIT VÀ LƯU JSON ]
@@ -505,16 +560,5 @@ SubmitBtn.MouseButton1Click:Connect(function()
         local jsonData = Services.HttpService:JSONEncode({Key = enteredKey})
         SafeWriteFile(JsonFileName, jsonData)
         
-        ShowNotification("Authenticated", "Key is valid. Loading script...", true)
-        task.wait(1)
-        ScreenGui:Destroy()
-        ExecuteGameScript(isPremium)
-    else
-        ShowNotification("Authentication Failed", "Invalid key.", false)
-        KeyInput.Text = ""
-        task.wait(1)
-        Player:Kick("[Nhism Hub] Invalid Key Attempt.")
-    end
-end)
-
-SwitchTab(KeyPage, InfoPage, KeyTabBtn, InfoTabBtn)
+        ShowNotification("Authenticated", "Key is valid. Loading...", true)
+        tas
