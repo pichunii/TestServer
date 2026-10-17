@@ -1,22 +1,3 @@
---[[
-    HỆ THỐNG KEY UI MACOS LIGHT (V5 - BẢN HOÀN CHỈNH)
-    Tác giả: Nhism
-
-    [ CÁCH SỬ DỤNG CONFIG CHUẨN XÁC - ĐỌC KỸ ]
-    Lỗi "Không Thể Executor" ở bản trước do cú pháp loadstring của bạn bị lồng sai.
-    Để chạy tự động qua Config, hãy copy ĐÚNG đoạn code dưới đây vào Executor:
-
-    getgenv().Key = "NHISM-PREMIUM-999"
-    getgenv().id = "153601438942"
-    getgenv().Script_Mode = "Main" -- Hoặc "Kaitun"
-    loadstring(game:HttpGet("https://raw.githubusercontent.com/pichunii/TestServer/refs/heads/main/Advanced/TestKey.luau"))()
-
-    [ LƯU Ý ]
-    - Nếu bạn điền Key sai trong Config, hệ thống sẽ tự động Kick.
-    - Nếu bạn để trống Config Key (hoặc không chạy Config), UI sẽ hiện lên để nhập.
-    - Script đã được bọc pcall toàn diện để chống crash Executor nếu thiếu hàm (như isfile, writefile).
-]]
-
 -- Kiểm tra môi trường Executor
 if not game:IsLoaded() then game.Loaded:Wait() end
 
