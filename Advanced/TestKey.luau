@@ -1,41 +1,45 @@
 --[[
-    HỆ THỐNG KEY UI MACOS LIGHT (UPDATE V4)
+    HỆ THỐNG KEY UI MACOS LIGHT (V5 - BẢN HOÀN CHỈNH)
     Tác giả: Nhism
-    
-    [ HƯỚNG DẪN SỬ DỤNG CONFIG CHUẨN XÁC ]
-    Lỗi của bạn nằm ở cú pháp loadstring lồng nhau sai quy tắc.
-    Để chạy Script qua Config, hãy dùng đúng cú pháp sau:
-    
+
+    [ CÁCH SỬ DỤNG CONFIG CHUẨN XÁC - ĐỌC KỸ ]
+    Lỗi "Không Thể Executor" ở bản trước do cú pháp loadstring của bạn bị lồng sai.
+    Để chạy tự động qua Config, hãy copy ĐÚNG đoạn code dưới đây vào Executor:
+
     getgenv().Key = "NHISM-PREMIUM-999"
     getgenv().id = "153601438942"
     getgenv().Script_Mode = "Main" -- Hoặc "Kaitun"
     loadstring(game:HttpGet("https://raw.githubusercontent.com/pichunii/TestServer/refs/heads/main/Advanced/TestKey.luau"))()
-    
-    [ THAY ĐỔI V4 ]
-    - Fix toàn bộ lỗi UI, kéo thả, neo màn hình.
-    - Thêm logic Kaitun/Main độc lập.
-    - Thêm danh sách ID Discord được phép.
-    - Thêm Rainbow Effect cho Title.
+
+    [ LƯU Ý ]
+    - Nếu bạn điền Key sai trong Config, hệ thống sẽ tự động Kick.
+    - Nếu bạn để trống Config Key (hoặc không chạy Config), UI sẽ hiện lên để nhập.
+    - Script đã được bọc pcall toàn diện để chống crash Executor nếu thiếu hàm (như isfile, writefile).
 ]]
 
--- Services
-local Players = game:GetService("Players")
-local TweenService = game:GetService("TweenService")
-local UserInputService = game:GetService("UserInputService")
-local CoreGui = game:GetService("CoreGui")
-local HttpService = game:GetService("HttpService")
-local RunService = game:GetService("RunService")
+-- Kiểm tra môi trường Executor
+if not game:IsLoaded() then game.Loaded:Wait() end
 
-local Player = Players.LocalPlayer
-local IsMobile = UserInputService.TouchEnabled and not UserInputService.KeyboardEnabled
-local ScreenGuiName = "NhismKeySystem_V4"
-local JsonFileName = "Nhism_Config.json"
+local Services = {
+    Players = game:GetService("Players"),
+    TweenService = game:GetService("TweenService"),
+    UserInputService = game:GetService("UserInputService"),
+    CoreGui = game:GetService("CoreGui"),
+    HttpService = game:GetService("HttpService"),
+    RunService = game:GetService("RunService"),
+    Lighting = game:GetService("Lighting")
+}
+
+local Player = Services.Players.LocalPlayer
+local IsMobile = Services.UserInputService.TouchEnabled and not Services.UserInputService.KeyboardEnabled
+local ScreenGuiName = "NhismKeySystem_V5"
+local JsonFileName = "Nhism_Config_V5.json"
 
 -- [ CẤU HÌNH HỆ THỐNG TỪ BÊN NGOÀI ]
 local Config = {
     Key = getgenv().Key or "",
     ID = getgenv().id or "Unknown_ID",
-    Script_Mode = getgenv().Script_Mode or "Main" -- "Main" hoặc "Kaitun"
+    Script_Mode = getgenv().Script_Mode or "Main"
 }
 
 -- [ DANH SÁCH ID DISCORD ĐƯỢC PHÉP (WHITELIST) ]
@@ -55,43 +59,41 @@ local SupportedGames = {
     [7449423635] = "Blox Fruits",
     [18437661052] = "Steal A Egg"
 }
-
 local CurrentGameName = SupportedGames[game.PlaceId]
 
 -- [ LOGIC KICK GAME KHÔNG HỖ TRỢ ]
 if not CurrentGameName then
-    Player:Kick("[Nhism Hub] Unsupported Game.")
+    Player:Kick("[Nhism Hub] Unsupported Game. Please play Blox Fruits or Steal A Egg.")
     return
 end
 
--- [ HÀM CHẠY SCRIPT THEO MODE ]
+-- [ HÀM CHẠY SCRIPT CHÍNH ]
 local function ExecuteGameScript(isPremium)
-    local MainScriptURL = "" -- THAY LINK SCRIPT MAIN VÀO ĐÂY
-    local KaitunScriptURL = "" -- THAY LINK SCRIPT KAITUN VÀO ĐÂY (ScriptCuaBan)
+    -- THAY LINK SCRIPT RAW CỦA BẠN VÀO ĐÂY
+    local MainScriptURL = "https://raw.githubusercontent.com/yourname/yourrepo/main/main.lua"
+    local KaitunScriptURL = "https://raw.githubusercontent.com/yourname/yourrepo/main/kaitun.lua"
     
-    local TargetURL = ""
-    
-    if Config.Script_Mode == "Kaitun" then
-        TargetURL = KaitunScriptURL
-    else
-        TargetURL = MainScriptURL
-    end
+    local TargetURL = (Config.Script_Mode == "Kaitun") and KaitunScriptURL or MainScriptURL
 
-    if TargetURL ~= "" then
-        loadstring(game:HttpGet(TargetURL))()
+    if TargetURL ~= "" and TargetURL:find("http") then
+        local success, err = pcall(function()
+            loadstring(game:HttpGet(TargetURL))()
+        end)
+        if not success then
+            warn("[Nhism Hub] Lỗi tải script: " .. tostring(err))
+        end
     else
-        print("[Hệ Thống] Chưa cài đặt Link Script cho Mode: " .. Config.Script_Mode)
+        print("[Hệ Thống] Chưa cài đặt Link Script trong ExecuteGameScript.")
     end
 end
 
--- [ KIỂM TRA CONFIG TỰ ĐỘNG (BỎ QUA UI NẾU CÓ KEY) ]
+-- [ KIỂM TRA CONFIG TỰ ĐỘNG (QUY TẮC 6) ]
 if Config.Key ~= "" then
     local isValid = false
     for _, k in ipairs(FreeKeys) do if Config.Key == k then isValid = true break end end
     if not isValid then for _, k in ipairs(PremiumKeys) do if Config.Key == k then isValid = true break end end end
 
     if isValid then
-        -- Kiểm tra ID Discord có trong Whitelist không (Tùy chọn)
         if AllowedIDs[Config.ID] or Config.ID == "Unknown_ID" then
             ExecuteGameScript(Config.Key:find("PREM") ~= nil)
             return -- Chạy thẳng script, không hiện UI
@@ -105,16 +107,36 @@ if Config.Key ~= "" then
     end
 end
 
--- [ KIỂM TRA FILE JSON LƯU KEY ]
+-- [ HÀM HỖ TRỢ FILE JSON AN TOÀN (CHỐNG CRASH EXECUTOR) ]
+local function SafeReadFile(fileName)
+    if isfile and readfile then
+        local success, result = pcall(function()
+            if isfile(fileName) then return readfile(fileName) end
+        end)
+        if success and result then return result end
+    end
+    return nil
+end
+
+local function SafeWriteFile(fileName, content)
+    if writefile then
+        pcall(function() writefile(fileName, content) end)
+    end
+end
+
+-- Tải Key đã lưu
 local SavedKey = ""
-if isfile(JsonFileName) then
-    local success, result = pcall(function() return HttpService:JSONDecode(readfile(JsonFileName)) end)
-    if success and result.Key then SavedKey = result.Key end
+local fileData = SafeReadFile(JsonFileName)
+if fileData then
+    local success, result = pcall(function() return Services.HttpService:JSONDecode(fileData) end)
+    if success and result and result.Key then
+        SavedKey = result.Key
+    end
 end
 
 -- Dọn dẹp UI cũ
-if CoreGui:FindFirstChild(ScreenGuiName) then
-    CoreGui:FindFirstChild(ScreenGuiName):Destroy()
+if Services.CoreGui:FindFirstChild(ScreenGuiName) then
+    Services.CoreGui:FindFirstChild(ScreenGuiName):Destroy()
 end
 
 -- [ KHỞI TẠO UI - MACOS LIGHT THEME ]
@@ -122,13 +144,13 @@ local ScreenGui = Instance.new("ScreenGui")
 ScreenGui.Name = ScreenGuiName
 ScreenGui.ResetOnSpawn = false
 ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
-ScreenGui.Parent = CoreGui
+ScreenGui.Parent = Services.CoreGui
 
--- Main Window (Fix lỗi lệch màn hình)
+-- Main Window
 local MainFrame = Instance.new("Frame")
 MainFrame.Name = "MainFrame"
 MainFrame.Size = UDim2.new(0, 600, 0, 400)
-MainFrame.AnchorPoint = Vector2.new(0.5, 0.5)
+MainFrame.AnchorPoint = Vector2.new(0.5, 0.5) -- Neo giữa màn hình
 MainFrame.Position = UDim2.new(0.5, 0, 0.5, 0)
 MainFrame.BackgroundColor3 = Color3.fromRGB(250, 250, 250)
 MainFrame.BorderSizePixel = 0
@@ -145,9 +167,9 @@ UIStroke.Parent = MainFrame
 
 local UIScale = Instance.new("UIScale")
 UIScale.Parent = MainFrame
-UIScale.Scale = IsMobile and 0.7 or 1
+UIScale.Scale = IsMobile and 0.75 or 1
 
--- Title Bar (MacOS Style)
+-- Title Bar
 local TitleBar = Instance.new("Frame")
 TitleBar.Size = UDim2.new(1, 0, 0, 40)
 TitleBar.BackgroundTransparency = 1
@@ -164,7 +186,7 @@ for i, color in ipairs({Color3.fromRGB(255, 95, 86), Color3.fromRGB(255, 189, 46
     c.Parent = dot
 end
 
--- [ FIX LỖI KÉO THẢ UI ]
+-- [ LOGIC KÉO THẢ FIX LỖI HOÀN TOÀN ]
 local dragging, dragInput, dragStart, startPos
 TitleBar.InputBegan:Connect(function(input)
     if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
@@ -173,14 +195,18 @@ TitleBar.InputBegan:Connect(function(input)
         startPos = MainFrame.Position
         
         input.Changed:Connect(function()
-            if input.UserInputState == Enum.UserInputState.End then dragging = false end
+            if input.UserInputState == Enum.UserInputState.End then
+                dragging = false
+            end
         end)
     end
 end)
 TitleBar.InputChanged:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then dragInput = input end
+    if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
+        dragInput = input
+    end
 end)
-UserInputService.InputChanged:Connect(function(input)
+Services.UserInputService.InputChanged:Connect(function(input)
     if input == dragInput and dragging then
         local delta = input.Position - dragStart
         MainFrame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
@@ -197,7 +223,7 @@ local SidebarCorner = Instance.new("UICorner")
 SidebarCorner.CornerRadius = UDim.new(0, 8)
 SidebarCorner.Parent = Sidebar
 
--- Profile (Góc dưới bên trái)
+-- Profile (Dưới bên trái)
 local ProfileFrame = Instance.new("Frame")
 ProfileFrame.Size = UDim2.new(1, -20, 0, 50)
 ProfileFrame.AnchorPoint = Vector2.new(0, 1)
@@ -273,7 +299,7 @@ KeyPage.Size = UDim2.new(1, 0, 1, 0)
 KeyPage.BackgroundTransparency = 1
 KeyPage.Parent = ContentContainer
 
--- [ RAINBOW TITLE EFFECT ]
+-- [ RAINBOW TITLE ]
 local Title = Instance.new("TextLabel")
 Title.Size = UDim2.new(1, 0, 0, 30)
 Title.BackgroundTransparency = 1
@@ -293,9 +319,10 @@ TitleGradient.Color = ColorSequence.new{
 }
 TitleGradient.Parent = Title
 
--- Animation Rainbow
-RunService.RenderStepped:Connect(function()
-    TitleGradient.Rotation = (tick() * 80) % 360
+Services.RunService.RenderStepped:Connect(function()
+    if TitleGradient then
+        TitleGradient.Rotation = (tick() * 80) % 360
+    end
 end)
 
 local Subtitle = Instance.new("TextLabel")
@@ -349,7 +376,10 @@ PasteCorner.CornerRadius = UDim.new(0, 6)
 PasteCorner.Parent = PasteBtn
 
 PasteBtn.MouseButton1Click:Connect(function()
-    if getclipboard then KeyInput.Text = getclipboard() end
+    if getclipboard then
+        local success, clip = pcall(getclipboard)
+        if success and clip then KeyInput.Text = clip end
+    end
 end)
 
 -- Buttons
@@ -404,7 +434,7 @@ InfTxt.Text = string.format([[
     Time: %s
     Mode: %s
     Game: %s
-    Version: 4.0.0
+    Version: 5.0.0
     
     Developer: Nhism
     Discord: discord.gg/nhism
@@ -420,14 +450,14 @@ InfTxt.Parent = InfoPage
 local function SwitchTab(showPage, hidePage, activeBtn, inactiveBtn)
     hidePage.Visible = false
     showPage.Visible = true
-    TweenService:Create(activeBtn, TweenInfo.new(0.2), {BackgroundTransparency = 0.8, BackgroundColor3 = Color3.fromRGB(200, 200, 200)}):Play()
-    TweenService:Create(inactiveBtn, TweenInfo.new(0.2), {BackgroundTransparency = 1, BackgroundColor3 = Color3.fromRGB(255, 255, 255)}):Play()
+    Services.TweenService:Create(activeBtn, TweenInfo.new(0.2), {BackgroundTransparency = 0.8, BackgroundColor3 = Color3.fromRGB(200, 200, 200)}):Play()
+    Services.TweenService:Create(inactiveBtn, TweenInfo.new(0.2), {BackgroundTransparency = 1, BackgroundColor3 = Color3.fromRGB(255, 255, 255)}):Play()
 end
 
 KeyTabBtn.MouseButton1Click:Connect(function() SwitchTab(KeyPage, InfoPage, KeyTabBtn, InfoTabBtn) end)
 InfoTabBtn.MouseButton1Click:Connect(function() SwitchTab(InfoPage, KeyPage, InfoTabBtn, KeyTabBtn) end)
 
--- Notification
+-- Notification System
 local function ShowNotification(title, text, isSuccess)
     local Notif = Instance.new("Frame")
     Notif.Size = UDim2.new(0, 300, 0, 60)
@@ -464,10 +494,10 @@ local function ShowNotification(title, text, isSuccess)
     NText.TextXAlignment = Enum.TextXAlignment.Left
     NText.Parent = Notif
 
-    TweenService:Create(Notif, TweenInfo.new(0.4, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), {Position = UDim2.new(0.5, 0, 0, 20)}):Play()
+    Services.TweenService:Create(Notif, TweenInfo.new(0.4, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), {Position = UDim2.new(0.5, 0, 0, 20)}):Play()
     
     task.delay(3, function()
-        local out = TweenService:Create(Notif, TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {Position = UDim2.new(0.5, 0, 0, -100)})
+        local out = Services.TweenService:Create(Notif, TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {Position = UDim2.new(0.5, 0, 0, -100)})
         out:Play()
         out.Completed:Wait()
         Notif:Destroy()
@@ -475,7 +505,9 @@ local function ShowNotification(title, text, isSuccess)
 end
 
 GetKeyBtn.MouseButton1Click:Connect(function()
-    if setclipboard then setclipboard("https://link-to-your-key-system.com") end
+    if setclipboard then 
+        pcall(function() setclipboard("https://link-to-your-key-system.com") end)
+    end
     ShowNotification("Copied", "Key link copied to clipboard.", true)
 end)
 
@@ -489,8 +521,8 @@ SubmitBtn.MouseButton1Click:Connect(function()
     if not isValid then for _, k in ipairs(PremiumKeys) do if enteredKey == k then isValid = true; isPremium = true; break end end end
 
     if isValid then
-        local jsonData = HttpService:JSONEncode({Key = enteredKey})
-        if writefile then writefile(JsonFileName, jsonData) end
+        local jsonData = Services.HttpService:JSONEncode({Key = enteredKey})
+        SafeWriteFile(JsonFileName, jsonData)
         
         ShowNotification("Authenticated", "Key is valid. Loading script...", true)
         task.wait(1)
