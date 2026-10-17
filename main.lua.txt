@@ -1,0 +1,242 @@
+-- Universal Rage (All FPS) - Full Script
+-- FOV: 400, TeamCheck: false, WallCheck: false, Smooth: 0.05
+getgenv().Config = {
+    FOV = 400,
+    TeamCheck = false,
+    WallCheck = false,
+    Smooth = 0.05,
+    TriggerKey = "MouseButton2", -- Right click to aim
+    RainbowMode = false,
+    FOVCircle = true,
+    FOVCircleColor = Color3.fromRGB(255, 0, 0),
+    FOVCircleTransparency = 0.8,
+    FOVCircleThickness = 2,
+    FOVCircleSides = 50,
+    ShowInfo = true
+}
+
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
+local TweenService = game:GetService("TweenService")
+local Camera = workspace.CurrentCamera
+local LocalPlayer = Players.LocalPlayer
+local Mouse = LocalPlayer:GetMouse()
+
+-- Aimbot Variables
+local Aiming = false
+local Target = nil
+local FOVCircle = Drawing.new("Circle")
+local InfoBox = Drawing.new("Square")
+
+-- Prediction Settings
+local Prediction = true
+local PredictionAmount = 0.165
+
+-- Anti-Aim Detection
+local AntiAimCheck = true
+
+-- Initialize FOV Circle
+local function UpdateFOVCircle()
+    if Config.FOVCircle then
+        FOVCircle.Visible = true
+        FOVCircle.Radius = Config.FOV
+        FOVCircle.Filled = false
+        FOVCircle.Thickness = Config.FOVCircleThickness
+        FOVCircle.Color = Config.FOVCircleColor
+        FOVCircle.Transparency = Config.FOVCircleTransparency
+        FOVCircle.NumSides = Config.FOVCircleSides
+        FOVCircle.Position = Vector2.new(Mouse.X, Mouse.Y)
+    else
+        FOVCircle.Visible = false
+    end
+end
+
+-- Initialize Info Box
+local function UpdateInfoBox()
+    if Config.ShowInfo and Target then
+        InfoBox.Visible = true
+        InfoBox.Size = Vector2.new(150, 60)
+        InfoBox.Position = Vector2.new(Mouse.X - 75, Mouse.Y - 100)
+        InfoBox.Filled = true
+        InfoBox.Transparency = 0.8
+        InfoBox.Color = Color3.fromRGB(0, 0, 0)
+        InfoBox.Thickness = 1
+    else
+        InfoBox.Visible = false
+    end
+end
+
+-- World to Screen
+local function WorldToScreen(Position)
+    local ScreenPoint, OnScreen = Camera:WorldToScreenPoint(Position)
+    return Vector2.new(ScreenPoint.X, ScreenPoint.Y), OnScreen
+end
+
+-- Get Mouse Position
+local function GetMousePos()
+    return Vector2.new(Mouse.X, Mouse.Y)
+end
+
+-- Distance Check
+local function GetDistanceFromMouse(TargetPosition)
+    local ScreenPoint, OnScreen = WorldToScreen(TargetPosition)
+    if OnScreen then
+        return (GetMousePos() - ScreenPoint).Magnitude
+    end
+    return math.huge
+end
+
+-- Prediction Function
+local function PredictPosition(TargetPlayer)
+    local Character = TargetPlayer.Character
+    if Character and Character:FindFirstChild("HumanoidRootPart") then
+        local RootPart = Character.HumanoidRootPart
+        local Velocity = RootPart.Velocity
+        local Prediction = RootPart.Position + (Velocity * PredictionAmount)
+        return Prediction
+    end
+    return TargetPlayer.Character.HumanoidRootPart.Position
+end
+
+-- Valid Target Check
+local function IsValidTarget(TargetPlayer)
+    if not TargetPlayer or not TargetPlayer.Character then return false end
+    if TargetPlayer == LocalPlayer then return false end
+    if Config.TeamCheck and TargetPlayer.Team == LocalPlayer.Team then return false end
+    
+    local Character = TargetPlayer.Character
+    local Humanoid = Character:FindFirstChild("Humanoid")
+    local RootPart = Character:FindFirstChild("HumanoidRootPart")
+    local Head = Character:FindFirstChild("Head")
+    
+    if not Humanoid or not RootPart or not Head then return false end
+    if Humanoid.Health <= 0 then return false end
+    
+    if Config.WallCheck then
+        local Raycast = workspace:Raycast(Camera.CFrame.Position, (RootPart.Position - Camera.CFrame.Position).Unit * 1000)
+        if Raycast and Raycast.Instance and Raycast.Instance:IsDescendantOf(Character) == false then
+            return false
+        end
+    end
+    
+    if AntiAimCheck then
+        -- Basic anti-aim detection (desync check)
+        local RootPart = Character.HumanoidRootPart
+        if RootPart then
+            local Velocity = RootPart.Velocity
+            if Velocity.Magnitude > 50 then return false end -- Likely teleporting
+        end
+    end
+    
+    return true
+end
+
+-- Find Closest Target
+local function FindTarget()
+    local ClosestDistance = Config.FOV
+    local ClosestTarget = nil
+    
+    for _, Player in pairs(Players:GetPlayers()) do
+        if IsValidTarget(Player) then
+            local TargetPosition = PredictPosition(Player)
+            local Distance = GetDistanceFromMouse(TargetPosition)
+            
+            if Distance < ClosestDistance then
+                ClosestDistance = Distance
+                ClosestTarget = Player
+            end
+        end
+    end
+    
+    return ClosestTarget
+end
+
+-- Smooth Aim
+local function AimAt(TargetPosition)
+    local ScreenPoint, OnScreen = WorldToScreen(TargetPosition)
+    if not OnScreen then return end
+    
+    local MousePos = GetMousePos()
+    local Delta = ScreenPoint - MousePos
+    
+    -- Smooth aiming with configurable smoothness
+    local Smoothness = Config.Smooth
+    local NewMousePos = MousePos + (Delta * Smoothness)
+    
+    -- Apply aim
+    mousemoverel((NewMousePos - MousePos).X * 0.2, (NewMousePos - MousePos).Y * 0.2)
+end
+
+-- Rainbow FOV Circle
+local function RainbowFOV()
+    if Config.RainbowMode then
+        local Hue = tick() % 5 / 5
+        FOVCircle.Color = Color3.fromHSV(Hue, 1, 1)
+    end
+end
+
+-- Main Aimbot Loop
+local function AimbotLoop()
+    Target = FindTarget()
+    
+    if Aiming and Target then
+        local TargetPosition = PredictPosition(Target)
+        AimAt(TargetPosition)
+    end
+end
+
+-- Input Handling
+UserInputService.InputBegan:Connect(function(Input, GameProcessed)
+    if GameProcessed then return end
+    
+    if Input.KeyCode.Name == Config.TriggerKey or Input.UserInputType.Name == Config.TriggerKey then
+        Aiming = true
+    end
+end)
+
+UserInputService.InputEnded:Connect(function(Input, GameProcessed)
+    if GameProcessed then return end
+    
+    if Input.KeyCode.Name == Config.TriggerKey or Input.UserInputType.Name == Config.TriggerKey then
+        Aiming = false
+    end
+end)
+
+-- Rendering Loop
+RunService.RenderStepped:Connect(function()
+    UpdateFOVCircle()
+    RainbowFOV()
+    UpdateInfoBox()
+    AimbotLoop()
+end)
+
+-- Initialize Drawing Objects
+FOVCircle.Filled = false
+FOVCircle.Thickness = 2
+FOVCircle.Transparency = 1
+FOVCircle.Color = Color3.fromRGB(255, 255, 255)
+FOVCircle.NumSides = 50
+FOVCircle.Radius = 0
+FOVCircle.Position = Vector2.new(0, 0)
+FOVCircle.Visible = false
+
+InfoBox.Filled = true
+InfoBox.Thickness = 1
+InfoBox.Size = Vector2.new(0, 0)
+InfoBox.Position = Vector2.new(0, 0)
+InfoBox.Color = Color3.fromRGB(0, 0, 0)
+InfoBox.Transparency = 1
+InfoBox.Visible = false
+
+print("Universal Rage Aimbot Loaded!")
+print("FOV: " .. Config.FOV .. " | TeamCheck: " .. tostring(Config.TeamCheck) .. " | WallCheck: " .. tostring(Config.WallCheck))
+print("Hold Right Click to Aim | Smoothness: " .. Config.Smooth)
+
+-- Cleanup on script unload
+game:GetService("Players").PlayerRemoving:Connect(function(player)
+    if player == LocalPlayer then
+        FOVCircle:Remove()
+        InfoBox:Remove()
+    end
+end)
